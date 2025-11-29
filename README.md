@@ -94,3 +94,12 @@ The `selector` can be any valid [CSS selector](https://developer.mozilla.org/en-
 You can find some of the CSS classes that identify different widgets in JupyterLab in the [developer documentation](https://jupyterlab.readthedocs.io/en/stable/developer/css.html#commonly-used-css-selectors).
 
 > See also the [documentation](https://jupyterlab.readthedocs.io/en/stable/extension/extension_points.html#context-menu).
+
+## Showing the Google OAuth token
+
+This customization extends the example dialog to also display the Google OAuth
+access token that JupyterHub obtains when users sign in with Google.
+The token is kept on the server and exposed through a lightweight Jupyter
+Server handler at `/jlab-examples/google-token`. When the context-menu entry
+is executed, the front-end fetches the token from this endpoint and includes
+it in the dialog body together with the selected directory path.

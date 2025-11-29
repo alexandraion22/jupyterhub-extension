@@ -5,7 +5,29 @@ import {
 import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
 import { showDialog, Dialog } from '@jupyterlab/apputils';
 import { buildIcon } from '@jupyterlab/ui-components';
-import { Contents } from '@jupyterlab/services';
+import { Contents, ServerConnection } from '@jupyterlab/services';
+
+const fetchGoogleToken = async (): Promise<string | null> => {
+  const settings = ServerConnection.makeSettings();
+  try {
+    const response = await ServerConnection.makeRequest(
+      `${settings.baseUrl}jlab-examples/google-token`,
+      {},
+      settings
+    );
+
+    if (!response.ok) {
+      console.error('Failed to fetch Google token', response.statusText);
+      return null;
+    }
+
+    const data = (await response.json()) as { token?: string };
+    return data.token ?? null;
+  } catch (error) {
+    console.error('Error while requesting Google token', error);
+    return null;
+  }
+};
 
 const extension: JupyterFrontEndPlugin<void> = {
   id: '@jupyterlab-examples/context-menu:plugin',
@@ -30,14 +52,18 @@ const extension: JupyterFrontEndPlugin<void> = {
       icon: buildIcon,
       isEnabled: () => isRootDirectory(getSelectedItem()),
       isVisible: () => isRootDirectory(getSelectedItem()),
-      execute: () => {
+      execute: async () => {
         const file = getSelectedItem();
         if (!file || !isRootDirectory(file)) {
           return;
         }
-        showDialog({
+        const token = await fetchGoogleToken();
+        const tokenMessage = token
+          ? `Google token: ${token}`
+          : 'Google token is not available.';
+        void showDialog({
           title: file.name,
-          body: 'Path: ' + file.path,
+          body: `Path: ${file.path}\n${tokenMessage}`,
           buttons: [Dialog.okButton()]
         }).catch(e => console.log(e));
       }
