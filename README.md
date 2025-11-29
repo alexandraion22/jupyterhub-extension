@@ -6,7 +6,7 @@ This is a basic example to show how to add a new entry to an existent context me
 
 ![context menu example](preview.gif)
 
-In JupyterLab plugins can expose context menus to offer an easy way to execute commands and perform actions. In this example, you will learn how to add a new entry to the file browser context menu to be displayed on files with extension `.example`.
+In JupyterLab plugins can expose context menus to offer an easy way to execute commands and perform actions. In this example, you will learn how to add a new entry to the file browser context menu to be displayed when right-clicking on directories that live in the root of the file browser.
 
 > It is strongly recommended to read [commands](https://github.com/jupyterlab/extension-examples/tree/main/commands) example before diving into this one.
 
@@ -35,18 +35,25 @@ The first step is to define the command that will be executed when clicking on t
 
 <!-- prettier-ignore-start -->
 ```ts
-// src/index.ts#L15-L32
+// src/index.ts#L15-L37
+
+const getSelectedItem = (): Contents.IModel | undefined =>
+  factory.tracker.currentWidget?.selectedItems().next()?.value;
+
+const isRootDirectory = (item: Contents.IModel | undefined): boolean => {
+  return !!item && item.type === 'directory' && !item.path.includes('/');
+};
 
 app.commands.addCommand('jlab-examples/context-menu:open', {
   label: 'Example',
   caption: "Example context menu button for file browser's items.",
   icon: buildIcon,
+  isEnabled: () => isRootDirectory(getSelectedItem()),
+  isVisible: () => isRootDirectory(getSelectedItem()),
   execute: () => {
-    const file = factory.tracker.currentWidget
-      ?.selectedItems()
-      .next().value;
+    const file = getSelectedItem();
 
-    if (file) {
+    if (isRootDirectory(file)) {
       showDialog({
         title: file.name,
         body: 'Path: ' + file.path,
@@ -74,7 +81,7 @@ You will need to define a context menu item under the property `context` of the 
   "context": [
     {
       "command": "jlab-examples/context-menu:open",
-      "selector": ".jp-DirListing-item[data-file-type=\"text\"]",
+      "selector": ".jp-DirListing-item[data-file-type=\"directory\"]",
       "rank": 0
     }
   ]
@@ -82,7 +89,7 @@ You will need to define a context menu item under the property `context` of the 
 ```
 <!-- prettier-ignore-end -->
 
-The `selector` can be any valid [CSS selector](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors). In this case, the first part is the CSS class that identifies the file browser items `.jp-DirListing-item` and the second part `[data-file-type="text"]` is a attribute value to be found on the item; the `data-file-type` attribute is set with the file type name or `text` for generic files. You can omit the second part to add the command to every file type.
+The `selector` can be any valid [CSS selector](https://developer.mozilla.org/en-US/docs/Web/CSS/CSS_Selectors). In this case, the first part is the CSS class that identifies the file browser items `.jp-DirListing-item` and the second part `[data-file-type="directory"]` limits the entry to directories. Additional filtering (to keep only root-level directories) is handled in the command itself.
 
 You can find some of the CSS classes that identify different widgets in JupyterLab in the [developer documentation](https://jupyterlab.readthedocs.io/en/stable/developer/css.html#commonly-used-css-selectors).
 

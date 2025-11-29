@@ -1,40 +1,37 @@
 import { test, expect } from '@jupyterlab/galata';
 
-test('should have new context menu for example files', async ({ page }) => {
-  await page.getByRole('menuitem', { name: 'File' }).click();
-  await page.getByRole('listitem').filter({ hasText: 'New' }).click();
-  await page.getByRole('menuitem', { name: 'Text File', exact: true }).click();
+test('shows context menu only for root directories', async ({ page }) => {
+  const fileBrowser = page.locator('[aria-label="File Browser Section"]');
+  const rootFolder = `root-dir-${Date.now()}`;
+  const nestedFolder = `nested-${Date.now()}`;
 
-  await page
-    .locator('[aria-label="File Browser Section"]')
-    .getByText('untitled.txt')
-    .click({
+  const rightClickItem = async (label: string) => {
+    await fileBrowser.getByText(label, { exact: true }).click({
       button: 'right'
     });
+  };
 
-  await page.getByRole('menuitem', { name: 'Rename' }).click();
-
-  // Fill file browser >> input
-  await page.locator('input.jp-DirListing-editor').fill('test.example');
-
-  // Press Enter
+  await page.getByRole('button', { name: 'New Folder' }).click();
+  await page.locator('input.jp-DirListing-editor').fill(rootFolder);
   await page.locator('input.jp-DirListing-editor').press('Enter');
-
-  // Wait for the data attribute to be set
   await page.waitForTimeout(200);
 
-  await page
-    .locator('[aria-label="File Browser Section"]')
-    .getByText('test.example')
-    .click({
-      button: 'right'
-    });
+  await rightClickItem(rootFolder);
 
   await page.getByRole('menuitem', { name: 'Example' }).click();
-
-  await expect(page.getByText(/^Path: ([\w-]+\/)?test\.example$/)).toHaveCount(
+  await expect(page.getByText(new RegExp(`^Path: ${rootFolder}$`))).toHaveCount(
     1
   );
-
   await page.getByRole('button', { name: /ok/i }).click();
+
+  await fileBrowser.getByText(rootFolder, { exact: true }).dblclick();
+  await page.getByRole('button', { name: 'New Folder' }).click();
+  await page.locator('input.jp-DirListing-editor').fill(nestedFolder);
+  await page.locator('input.jp-DirListing-editor').press('Enter');
+  await page.waitForTimeout(200);
+
+  await rightClickItem(nestedFolder);
+
+  await expect(page.getByRole('menuitem', { name: 'Example' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
 });
