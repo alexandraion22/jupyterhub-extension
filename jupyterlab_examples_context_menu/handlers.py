@@ -10,6 +10,14 @@ class GoogleTokenHandler(APIHandler):
     @web.authenticated
     async def get(self):
         token = os.environ.get("GOOGLE_OAUTH_ACCESS_TOKEN")
+        
+        # Debug logging
+        print(f"Checking for GOOGLE_OAUTH_ACCESS_TOKEN. Found: {token is not None}")
+        if not token:
+            print("Available environment variables:")
+            for key in os.environ:
+                if "TOKEN" in key or "GOOGLE" in key:
+                    print(f"{key}: {os.environ[key][:10]}...")
 
         if not token:
             self.set_status(404)
