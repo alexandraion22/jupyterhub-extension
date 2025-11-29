@@ -1,0 +1,8 @@
+{
+  "ServerApp": {
+    "jpserver_extensions": {
+      "jupyterlab_examples_context_menu": true
+    }
+  }
+}
+
