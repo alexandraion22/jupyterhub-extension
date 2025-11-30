@@ -46,16 +46,18 @@ class ShareHandler(APIHandler):
                 self.finish(json.dumps({"error": "Missing directory_name or share_with_user"}))
                 return
 
+            if not token:
+                self.set_status(400)
+                self.finish(json.dumps({"error": "Missing auth token"}))
+                return
+
             # Get current user (owner) from environment or JupyterHub user
-            # JUPYTERHUB_USER is usually set in the singleuser environment
             owner = os.environ.get("JUPYTERHUB_USER")
             if not owner:
-                # Fallback if not running in typical JH environment (e.g. dev)
-                # We can try to get it from the token or just fail
                 owner = "unknown-user"
                 print("Warning: JUPYTERHUB_USER not found, using 'unknown-user'")
 
-            # Prepare payload for the API
+            # Prepare payload for the API (exclude token from body)
             payload = {
                 "owner": owner,
                 "directory_name": directory_name,
@@ -63,19 +65,27 @@ class ShareHandler(APIHandler):
                 "access_rights": access_rights
             }
             
+            # Prepare headers with Bearer token
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            
             # API URL - using host.docker.internal to reach the host where API container runs
-            # Note: This assumes the pod can resolve host.docker.internal
             api_url = "http://host.docker.internal:8000/share"
             
-            print(f"Forwarding share request to {api_url}: {payload}")
+            print(f"Forwarding share request to {api_url} for {owner}")
             
             # Make request to the Config API
-            # Using requests (synchronous) - in a real app, assume this is fast or use async http client
-            response = requests.post(api_url, json=payload, timeout=10)
+            response = requests.post(api_url, json=payload, headers=headers, timeout=10)
             
             self.set_status(response.status_code)
             self.finish(response.text)
             
+        except requests.exceptions.RequestException as e:
+            print(f"Failed to connect to Config API: {e}")
+            self.set_status(502) # Bad Gateway
+            self.finish(json.dumps({"error": f"Failed to reach configuration service: {str(e)}"}))
         except Exception as e:
             print(f"Error in ShareHandler: {e}")
             self.set_status(500)
