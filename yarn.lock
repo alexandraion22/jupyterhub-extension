@@ -2119,14 +2119,9 @@ __metadata:
   resolution: "@jupyterlab-examples/context-menu@workspace:."
   dependencies:
     "@jupyterlab/application": ^4.0.0
-    "@jupyterlab/apputils": ^4.0.0
     "@jupyterlab/builder": ^4.0.0
-    "@jupyterlab/filebrowser": ^4.0.0
-    "@jupyterlab/services": ^7.0.0
     "@jupyterlab/settingregistry": ^4.0.0
     "@jupyterlab/testutils": ^4.0.0
-    "@jupyterlab/ui-components": ^4.0.0
-    "@lumino/widgets": ^2.0.0
     "@types/jest": ^29.2.0
     "@types/json-schema": ^7.0.11
     "@types/react": ^18.0.26
@@ -2181,7 +2176,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/apputils@npm:^4.0.0, @jupyterlab/apputils@npm:^4.6.0":
+"@jupyterlab/apputils@npm:^4.6.0":
   version: 4.6.0
   resolution: "@jupyterlab/apputils@npm:4.6.0"
   dependencies:
@@ -2452,7 +2447,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/filebrowser@npm:^4.0.0, @jupyterlab/filebrowser@npm:^4.5.0":
+"@jupyterlab/filebrowser@npm:^4.5.0":
   version: 4.5.0
   resolution: "@jupyterlab/filebrowser@npm:4.5.0"
   dependencies:
@@ -2649,7 +2644,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/services@npm:^7.0.0, @jupyterlab/services@npm:^7.5.0":
+"@jupyterlab/services@npm:^7.5.0":
   version: 7.5.0
   resolution: "@jupyterlab/services@npm:7.5.0"
   dependencies:
@@ -2788,7 +2783,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/ui-components@npm:^4.0.0, @jupyterlab/ui-components@npm:^4.5.0":
+"@jupyterlab/ui-components@npm:^4.5.0":
   version: 4.5.0
   resolution: "@jupyterlab/ui-components@npm:4.5.0"
   dependencies:
@@ -3107,7 +3102,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/widgets@npm:^1.37.2 || ^2.7.2, @lumino/widgets@npm:^2.0.0, @lumino/widgets@npm:^2.7.2":
+"@lumino/widgets@npm:^1.37.2 || ^2.7.2, @lumino/widgets@npm:^2.7.2":
   version: 2.7.2
   resolution: "@lumino/widgets@npm:2.7.2"
   dependencies:
