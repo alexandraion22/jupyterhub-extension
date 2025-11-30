@@ -4,7 +4,7 @@
   "jupyter.lab.menus": {
     "context": [
       {
-        "command": "jlab-examples/context-menu:open",
+        "command": "jlab-examples/context-menu:share",
         "selector": ".jp-DirListing-item[data-file-type=\"directory\"]",
         "rank": 0
       }
