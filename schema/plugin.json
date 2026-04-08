@@ -7,6 +7,11 @@
         "command": "jlab-examples/context-menu:share",
         "selector": ".jp-DirListing-item[data-file-type=\"directory\"]",
         "rank": 0
+      },
+      {
+        "command": "jlab-examples/context-menu:view-permissions",
+        "selector": ".jp-DirListing-item[data-file-type=\"directory\"]",
+        "rank": 1
       }
     ]
   },
