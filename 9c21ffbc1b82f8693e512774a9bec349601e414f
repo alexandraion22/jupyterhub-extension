@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0.0",
+  "mode": "full",
+  "commit_sha": "9c21ffbc1b82f8693e512774a9bec349601e414f",
+  "author": "alexanamaria22@yahoo.com",
+  "timestamp": "2026-04-18T13:13:11+03:00",
+  "detection": {
+    "ai_assisted": false,
+    "method": "none",
+    "tool": "unknown",
+    "model": "",
+    "confidence": 0.0
+  },
+  "stats": {
+    "total_additions": 426,
+    "total_deletions": 78,
+    "ai_additions": 0,
+    "ai_deletions": 0,
+    "human_additions": 426,
+    "human_deletions": 78
+  },
+  "files": {
+    "jupyterlab_examples_context_menu/__init__.py": {
+      "ai_additions": 0,
+      "human_additions": 59,
+      "ai_deletions": 0,
+      "human_deletions": 1
+    },
+    "src/dialogs/ShareDialog.ts": {
+      "ai_additions": 0,
+      "human_additions": 159,
+      "ai_deletions": 0,
+      "human_deletions": 38
+    },
+    "src/index.ts": {
+      "ai_additions": 0,
+      "human_additions": 208,
+      "ai_deletions": 0,
+      "human_deletions": 39
+    }
+  }
+}
