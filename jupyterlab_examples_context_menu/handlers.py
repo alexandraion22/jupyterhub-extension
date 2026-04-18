@@ -15,8 +15,15 @@ SHARING_API_URL = os.environ.get(
 
 def _bearer_token(handler: APIHandler) -> str | None:
     auth = handler.request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        return auth.split(" ", 1)[1]
+    if not auth:
+        return None
+    # JupyterLab's ServerConnection also injects `token <oauth>` into the
+    # Authorization header; duplicate headers get joined by the browser as
+    # `Bearer <jwt>, token <oauth>`. Pick the first Bearer segment.
+    for seg in auth.split(","):
+        seg = seg.strip()
+        if seg.startswith("Bearer "):
+            return seg.split(" ", 1)[1].strip()
     return None
 
 
