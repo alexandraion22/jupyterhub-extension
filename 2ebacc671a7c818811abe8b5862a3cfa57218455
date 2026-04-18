@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0.0",
+  "mode": "full",
+  "commit_sha": "2ebacc671a7c818811abe8b5862a3cfa57218455",
+  "author": "alexanamaria22@yahoo.com",
+  "timestamp": "2026-04-18T11:51:06+03:00",
+  "detection": {
+    "ai_assisted": false,
+    "method": "none",
+    "tool": "unknown",
+    "model": "",
+    "confidence": 0.0
+  },
+  "stats": {
+    "total_additions": 9,
+    "total_deletions": 2,
+    "ai_additions": 0,
+    "ai_deletions": 0,
+    "human_additions": 9,
+    "human_deletions": 2
+  },
+  "files": {
+    "jupyterlab_examples_context_menu/handlers.py": {
+      "ai_additions": 0,
+      "human_additions": 9,
+      "ai_deletions": 0,
+      "human_deletions": 2
+    }
+  }
+}
