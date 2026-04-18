@@ -2,6 +2,7 @@ import { Widget } from '@lumino/widgets';
 import {
   AccessLevel,
   GeneralAccess,
+  Permission,
   Recipient,
   Role
 } from '../api';
@@ -10,43 +11,86 @@ const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 export interface ShareDialogResult {
   recipients: Recipient[];
+  removed: string[];
   generalAccess: GeneralAccess;
   linkAccessLevel: AccessLevel;
+}
+
+interface ExistingRecipient {
+  email: string;
+  originalRole: Role;
 }
 
 interface RecipientRow {
   container: HTMLDivElement;
   email: string;
   role: Role;
+  isExisting: boolean;
 }
 
 export class ShareDialogBody extends Widget {
   private emailInput: HTMLInputElement;
   private roleSelect: HTMLSelectElement;
   private chipsContainer: HTMLDivElement;
+  private peopleHeading: HTMLDivElement;
   private errorSpan: HTMLSpanElement;
   private generalAccessSelect: HTMLSelectElement;
   private linkRoleSelect: HTMLSelectElement;
   private linkHint: HTMLSpanElement;
   private copyLinkBtn: HTMLButtonElement;
   private rows: RecipientRow[] = [];
+  private readonly ownerEmail: string;
+  private readonly existing: ExistingRecipient[];
 
   constructor(
     private readonly folderName: string,
     private readonly ownerDomain: string,
     private readonly shareLink: string | null,
     initialGeneralAccess: GeneralAccess = 'restricted',
-    initialLinkAccess: AccessLevel = 'read'
+    initialLinkAccess: AccessLevel = 'read',
+    existingPermissions: Permission[] = [],
+    ownerEmail = ''
   ) {
     super({ node: document.createElement('div') });
-    this.node.style.minWidth = '460px';
+    this.node.style.minWidth = '480px';
     this.node.style.fontSize = '13px';
 
-    const heading = document.createElement('div');
-    heading.textContent = 'Add people';
-    heading.style.fontWeight = '600';
-    heading.style.marginBottom = '6px';
-    this.node.appendChild(heading);
+    this.ownerEmail = ownerEmail;
+    this.existing = existingPermissions
+      .filter(p => p.user_email !== ownerEmail)
+      .map(p => ({
+        email: p.user_email,
+        originalRole: p.access_level === 'write' ? 'editor' : 'viewer'
+      }));
+
+    this.peopleHeading = document.createElement('div');
+    this.peopleHeading.textContent = 'People with access';
+    this.peopleHeading.style.fontWeight = '600';
+    this.peopleHeading.style.marginBottom = '6px';
+    this.node.appendChild(this.peopleHeading);
+
+    this.chipsContainer = document.createElement('div');
+    this.chipsContainer.style.display = 'flex';
+    this.chipsContainer.style.flexDirection = 'column';
+    this.chipsContainer.style.gap = '4px';
+    this.chipsContainer.style.marginBottom = '10px';
+    this.chipsContainer.style.maxHeight = '180px';
+    this.chipsContainer.style.overflowY = 'auto';
+    this.node.appendChild(this.chipsContainer);
+
+    if (ownerEmail) {
+      this.renderOwnerChip(ownerEmail);
+    }
+    for (const e of this.existing) {
+      this.addRow(e.email, e.originalRole, /*isExisting*/ true);
+    }
+    this.updatePeopleHeading();
+
+    const addHeading = document.createElement('div');
+    addHeading.textContent = 'Add people';
+    addHeading.style.fontWeight = '600';
+    addHeading.style.margin = '10px 0 6px';
+    this.node.appendChild(addHeading);
 
     const addRow = document.createElement('div');
     addRow.style.display = 'flex';
@@ -87,15 +131,6 @@ export class ShareDialogBody extends Widget {
     this.errorSpan.style.marginBottom = '8px';
     this.node.appendChild(this.errorSpan);
 
-    this.chipsContainer = document.createElement('div');
-    this.chipsContainer.style.display = 'flex';
-    this.chipsContainer.style.flexDirection = 'column';
-    this.chipsContainer.style.gap = '4px';
-    this.chipsContainer.style.marginBottom = '14px';
-    this.chipsContainer.style.maxHeight = '180px';
-    this.chipsContainer.style.overflowY = 'auto';
-    this.node.appendChild(this.chipsContainer);
-
     const divider = document.createElement('hr');
     divider.style.border = 'none';
     divider.style.borderTop = '1px solid #ddd';
@@ -126,9 +161,13 @@ export class ShareDialogBody extends Widget {
     this.generalAccessSelect.appendChild(restrictedOpt);
     this.generalAccessSelect.appendChild(domainOpt);
     this.generalAccessSelect.value = initialGeneralAccess;
-    this.generalAccessSelect.addEventListener('change', () => this.updateLinkState());
+    this.generalAccessSelect.addEventListener('change', () =>
+      this.updateLinkState()
+    );
 
-    this.linkRoleSelect = this.buildRoleSelect(initialLinkAccess === 'write' ? 'editor' : 'viewer');
+    this.linkRoleSelect = this.buildRoleSelect(
+      initialLinkAccess === 'write' ? 'editor' : 'viewer'
+    );
 
     gaRow.appendChild(this.generalAccessSelect);
     gaRow.appendChild(this.linkRoleSelect);
@@ -147,11 +186,35 @@ export class ShareDialogBody extends Widget {
     this.copyLinkBtn.style.padding = '3px 10px';
     this.copyLinkBtn.addEventListener('click', e => {
       e.preventDefault();
-      this.copyLink();
+      void this.copyLink();
     });
     this.node.appendChild(this.copyLinkBtn);
 
     this.updateLinkState();
+  }
+
+  private renderOwnerChip(email: string): void {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.gap = '8px';
+    row.style.padding = '3px 6px';
+    row.style.background = '#f5f5f5';
+    row.style.borderRadius = '4px';
+
+    const emailSpan = document.createElement('span');
+    emailSpan.textContent = `${email} (owner)`;
+    emailSpan.style.flex = '1';
+    emailSpan.style.color = '#666';
+    emailSpan.style.fontStyle = 'italic';
+
+    row.appendChild(emailSpan);
+    this.chipsContainer.appendChild(row);
+  }
+
+  private updatePeopleHeading(): void {
+    const activeCount = this.rows.length + 1; // +1 for owner
+    this.peopleHeading.textContent = `People with access (${activeCount})`;
   }
 
   private buildRoleSelect(initial: Role): HTMLSelectElement {
@@ -174,14 +237,19 @@ export class ShareDialogBody extends Widget {
   private updateLinkState(): void {
     const domain = this.generalAccessSelect.value === 'domain';
     this.linkRoleSelect.disabled = !domain;
-    this.copyLinkBtn.disabled = !domain || !this.shareLink;
+    // Button is usable whenever there's a link; domain toggle doesn't
+    // prevent copying (if we have a link, they can share it).
+    this.copyLinkBtn.disabled = !this.shareLink;
     if (!this.shareLink) {
       this.linkHint.textContent =
-        'Save the share first to get a copyable link for your domain.';
+        'Save the share first, then come back to copy the link.';
     } else if (domain) {
-      this.linkHint.textContent = `Anyone at ${this.ownerDomain || 'your domain'} with the link can access “${this.folderName}”.`;
+      this.linkHint.textContent = `Anyone at ${
+        this.ownerDomain || 'your domain'
+      } with the link can access “${this.folderName}”.`;
     } else {
-      this.linkHint.textContent = 'Only people explicitly added above can access this folder.';
+      this.linkHint.textContent =
+        'Link below grants access only to explicitly-added people.';
     }
   }
 
@@ -194,27 +262,33 @@ export class ShareDialogBody extends Widget {
       this.showError(`“${email}” is not a valid email.`);
       return;
     }
+    if (email.toLowerCase() === this.ownerEmail.toLowerCase()) {
+      this.showError('You already own this folder.');
+      return;
+    }
     if (this.rows.some(r => r.email.toLowerCase() === email.toLowerCase())) {
       this.showError(`${email} is already in the list.`);
       return;
     }
     this.hideError();
-    this.addRow(email, this.roleSelect.value as Role);
+    this.addRow(email, this.roleSelect.value as Role, /*isExisting*/ false);
     this.emailInput.value = '';
     this.emailInput.focus();
+    this.updatePeopleHeading();
   }
 
-  private addRow(email: string, role: Role): void {
+  private addRow(email: string, role: Role, isExisting: boolean): void {
     const row: RecipientRow = {
       container: document.createElement('div'),
       email,
-      role
+      role,
+      isExisting
     };
     row.container.style.display = 'flex';
     row.container.style.alignItems = 'center';
     row.container.style.gap = '8px';
     row.container.style.padding = '3px 6px';
-    row.container.style.background = '#f5f5f5';
+    row.container.style.background = isExisting ? '#eef5ff' : '#f5f5f5';
     row.container.style.borderRadius = '4px';
 
     const emailSpan = document.createElement('span');
@@ -239,6 +313,7 @@ export class ShareDialogBody extends Widget {
       e.preventDefault();
       this.rows = this.rows.filter(r => r !== row);
       row.container.remove();
+      this.updatePeopleHeading();
     });
 
     row.container.appendChild(emailSpan);
@@ -253,15 +328,17 @@ export class ShareDialogBody extends Widget {
     if (!this.shareLink) {
       return;
     }
-    try {
-      await navigator.clipboard.writeText(this.shareLink);
+    const ok = await tryCopyToClipboard(this.shareLink);
+    if (ok) {
       const original = this.copyLinkBtn.textContent;
       this.copyLinkBtn.textContent = 'Copied!';
       setTimeout(() => {
         this.copyLinkBtn.textContent = original;
       }, 1500);
-    } catch {
-      this.showError('Copy failed — select and copy the link manually.');
+    } else {
+      this.showError(
+        `Copy failed. The link is: ${this.shareLink} — select and copy it manually.`
+      );
     }
   }
 
@@ -275,17 +352,11 @@ export class ShareDialogBody extends Widget {
   }
 
   validate(): boolean {
-    // Before validating, try to flush anything still in the email input.
     if (this.emailInput.value.trim()) {
       this.commitCurrentInput();
       if (this.errorSpan.style.display === 'block') {
         return false;
       }
-    }
-    const generalAccess = this.generalAccessSelect.value as GeneralAccess;
-    if (this.rows.length === 0 && generalAccess === 'restricted') {
-      this.showError('Add at least one person or enable domain-wide access.');
-      return false;
     }
     this.hideError();
     return true;
@@ -294,10 +365,60 @@ export class ShareDialogBody extends Widget {
   getValue(): ShareDialogResult {
     const generalAccess = this.generalAccessSelect.value as GeneralAccess;
     const linkRole = this.linkRoleSelect.value as Role;
+
+    const finalEmails = new Set(this.rows.map(r => r.email.toLowerCase()));
+    const removed = this.existing
+      .map(e => e.email)
+      .filter(email => !finalEmails.has(email.toLowerCase()));
+
+    // Only re-send recipients that are new or whose role changed.
+    const recipients: Recipient[] = this.rows
+      .filter(r => {
+        if (!r.isExisting) {
+          return true;
+        }
+        const orig = this.existing.find(
+          e => e.email.toLowerCase() === r.email.toLowerCase()
+        );
+        return orig?.originalRole !== r.role;
+      })
+      .map(r => ({ email: r.email, role: r.role }));
+
     return {
-      recipients: this.rows.map(r => ({ email: r.email, role: r.role })),
+      recipients,
+      removed,
       generalAccess,
       linkAccessLevel: linkRole === 'editor' ? 'write' : 'read'
     };
+  }
+}
+
+/**
+ * Try navigator.clipboard (requires secure context / HTTPS), fall back to a
+ * hidden-textarea + document.execCommand('copy') which works from any
+ * user-initiated event in every browser we care about.
+ */
+async function tryCopyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
   }
 }

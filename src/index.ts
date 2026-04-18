@@ -16,13 +16,23 @@ import {
   fetchMe,
   acceptShare,
   buildShareLink,
+  Permission,
   ShareSummary
 } from './api';
+import { Widget } from '@lumino/widgets';
 import { ShareDialogBody } from './dialogs/ShareDialog';
 import { PermissionsDialogBody } from './dialogs/PermissionsDialog';
 import { SharedWithMePanel } from './widgets/SharedWithMePanel';
 
 const SHARE_LINK_PARAM = 'share-link';
+
+function isInManagedSharedTree(item: Contents.IModel | undefined): boolean {
+  if (!item) {
+    return false;
+  }
+  const path = item.path.replace(/^\/+|\/+$/g, '');
+  return path === 'shared' || path.startsWith('shared/');
+}
 
 const extension: JupyterFrontEndPlugin<void> = {
   id: '@jupyterlab-examples/context-menu:plugin',
@@ -41,6 +51,7 @@ const extension: JupyterFrontEndPlugin<void> = {
     app.shell.add(sharesPanel, 'left', { rank: 900 });
 
     let ownerDomain = '';
+    let myEmail = '';
     let myShares: ShareSummary[] = [];
 
     const refreshShares = async (): Promise<void> => {
@@ -69,14 +80,21 @@ const extension: JupyterFrontEndPlugin<void> = {
       const path = share.is_owner
         ? share.display_name
         : `shared/${share.display_name}`;
+      // Check the path exists before calling open-path. Shares that were
+      // granted after this pod spawned don't have a mount yet — the user
+      // must restart the server so KubeSpawner picks up the new volume.
+      try {
+        await app.serviceManager.contents.get(path, { content: false });
+      } catch {
+        await promptServerRestart(share.display_name);
+        return;
+      }
       try {
         await app.commands.execute('filebrowser:open-path', { path });
       } catch (err) {
         void showErrorMessage(
           'Could not open folder',
-          `The folder will appear after you restart your server.\n\n(${
-            err instanceof Error ? err.message : String(err)
-          })`
+          err instanceof Error ? err.message : String(err)
         );
       }
     });
@@ -86,11 +104,26 @@ const extension: JupyterFrontEndPlugin<void> = {
       label: 'Share Folder',
       caption: 'Share this folder with another user',
       icon: buildIcon,
-      isEnabled: () => isDirectory(getSelectedItem()),
-      isVisible: () => isDirectory(getSelectedItem()),
+      isEnabled: () => {
+        const item = getSelectedItem();
+        return isDirectory(item) && !isInManagedSharedTree(item);
+      },
+      isVisible: () => {
+        const item = getSelectedItem();
+        return isDirectory(item) && !isInManagedSharedTree(item);
+      },
       execute: async () => {
         const file = getSelectedItem();
-        if (!file || !isDirectory(file)) {
+        if (!file || !isDirectory(file) || isInManagedSharedTree(file)) {
+          return;
+        }
+
+        const token = await fetchApiToken();
+        if (!token) {
+          void showErrorMessage(
+            'Authentication Error',
+            'Session expired or token unavailable. Please restart your server.'
+          );
           return;
         }
 
@@ -99,12 +132,26 @@ const extension: JupyterFrontEndPlugin<void> = {
         );
         const shareLink = existing ? buildShareLink(existing.volume_name) : null;
 
+        // If already shared, pull the current ACL so the dialog can render
+        // existing people with role dropdowns + remove buttons.
+        let existingPermissions: Permission[] = [];
+        if (existing) {
+          try {
+            const perms = await fetchPermissions(file.name, token);
+            existingPermissions = perms.permissions;
+          } catch (err) {
+            console.warn('Could not load existing permissions:', err);
+          }
+        }
+
         const dialogBody = new ShareDialogBody(
           file.name,
           ownerDomain,
           shareLink,
           existing?.general_access ?? 'restricted',
-          existing?.link_access_level ?? 'read'
+          existing?.link_access_level ?? 'read',
+          existingPermissions,
+          myEmail
         );
 
         const result = await showDialog({
@@ -117,18 +164,13 @@ const extension: JupyterFrontEndPlugin<void> = {
           return;
         }
 
-        const { recipients, generalAccess, linkAccessLevel } = dialogBody.getValue();
+        const { recipients, removed, generalAccess, linkAccessLevel } =
+          dialogBody.getValue();
 
         try {
-          const token = await fetchApiToken();
-          if (!token) {
-            void showErrorMessage(
-              'Authentication Error',
-              'Session expired or token unavailable. Please restart your server.'
-            );
-            return;
-          }
-
+          // We always call shareFolder so general-access changes propagate
+          // even when no recipients are being added/updated. The backend
+          // upserts on `recipients` and treats an empty array as a no-op.
           const response = await shareFolder(
             {
               directoryName: file.name,
@@ -139,32 +181,43 @@ const extension: JupyterFrontEndPlugin<void> = {
             token
           );
 
+          // Apply removals last so we don't briefly lose access
+          // intermediate-state.
+          for (const email of removed) {
+            try {
+              await revokeAccess(response.volume_name, email, token);
+            } catch (err) {
+              console.warn(`Revoke failed for ${email}:`, err);
+            }
+          }
+
           await refreshShares();
 
           const link = buildShareLink(response.volume_name);
-          const messageLines: string[] = [];
-          if (response.added.length) {
-            messageLines.push(
-              `Shared with: ${response.added.join(', ')}.`
+          const messages: string[] = [];
+          if (recipients.length) {
+            messages.push(
+              `Added / updated: ${recipients.map(r => r.email).join(', ')}.`
             );
+          }
+          if (removed.length) {
+            messages.push(`Removed: ${removed.join(', ')}.`);
           }
           if (generalAccess === 'domain' && ownerDomain) {
-            messageLines.push(
-              `Anyone at ${ownerDomain} can now ${
+            messages.push(
+              `Anyone at ${ownerDomain} can ${
                 linkAccessLevel === 'write' ? 'edit' : 'view'
-              } this folder.`
+              } this folder via the link.`
             );
-            messageLines.push(`Link: ${link}`);
           }
-          messageLines.push(
+          messages.push(
             'Recipients will see the folder under /shared/ after restarting their server.'
           );
 
-          void showDialog({
-            title: 'Share saved',
-            body: messageLines.join('\n\n'),
-            buttons: [Dialog.okButton()]
-          });
+          await showSuccessDialog(
+            messages.join('\n\n'),
+            generalAccess === 'domain' ? link : null
+          );
         } catch (error) {
           void showErrorMessage(
             'Sharing Failed',
@@ -236,8 +289,6 @@ const extension: JupyterFrontEndPlugin<void> = {
           '.jp-DirListing-itemText'
         ) as HTMLElement | null;
         const name = textEl?.textContent?.trim();
-        // Only decorate items at the owner's home root; deeper paths aren't
-        // tracked in our share model.
         const shouldDecorate =
           !!name && currentPath === '' && ownedNames.has(name);
         item.classList.toggle('jp-shared-folder', shouldDecorate);
@@ -269,19 +320,28 @@ const extension: JupyterFrontEndPlugin<void> = {
       }
       try {
         const res = await acceptShare(volume, token);
-        void showDialog({
-          title: 'Share joined',
-          body: res.message,
-          buttons: [Dialog.okButton()]
-        });
         await refreshShares();
+        // The share was recorded, but the mount only takes effect on the
+        // next pod spawn. Prompt the user to restart right away.
+        const alreadyMember = (res as unknown as { already_member?: boolean })
+          .already_member;
+        if (alreadyMember) {
+          void showDialog({
+            title: 'Share link',
+            body: res.message,
+            buttons: [Dialog.okButton()]
+          });
+        } else {
+          await promptServerRestart(
+            (res as unknown as { display_name?: string }).display_name ?? 'the shared folder'
+          );
+        }
       } catch (err) {
         void showErrorMessage(
           'Could not join share',
           err instanceof Error ? err.message : String(err)
         );
       } finally {
-        // Remove the query param so a page reload doesn't re-trigger.
         params.delete(SHARE_LINK_PARAM);
         const newSearch = params.toString();
         const newUrl =
@@ -297,11 +357,120 @@ const extension: JupyterFrontEndPlugin<void> = {
       const me = await fetchMe();
       if (me) {
         ownerDomain = me.domain;
+        myEmail = me.email;
       }
       await handleShareLink();
       await refreshShares();
     })();
   }
 };
+
+/**
+ * Success dialog with a copyable link when general access = domain.
+ * The link lives in a readonly <input> so the user can click it and Cmd/Ctrl+A
+ * selects the whole thing even when clipboard APIs fail.
+ */
+async function showSuccessDialog(
+  messageText: string,
+  link: string | null
+): Promise<void> {
+  const body = document.createElement('div');
+  body.style.fontSize = '13px';
+  body.style.minWidth = '420px';
+
+  for (const line of messageText.split('\n\n')) {
+    const p = document.createElement('p');
+    p.textContent = line;
+    p.style.margin = '0 0 8px';
+    body.appendChild(p);
+  }
+
+  if (link) {
+    const row = document.createElement('div');
+    row.style.display = 'flex';
+    row.style.gap = '6px';
+    row.style.marginTop = '8px';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.readOnly = true;
+    input.value = link;
+    input.style.flex = '1';
+    input.style.fontSize = '12px';
+    input.style.padding = '4px 6px';
+    input.addEventListener('focus', () => input.select());
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Copy link';
+    btn.style.cursor = 'pointer';
+    btn.style.padding = '3px 10px';
+    btn.addEventListener('click', async () => {
+      const ok = await copyToClipboardUniversal(link);
+      btn.textContent = ok ? 'Copied!' : 'Copy failed';
+      setTimeout(() => {
+        btn.textContent = 'Copy link';
+      }, 1500);
+    });
+
+    row.appendChild(input);
+    row.appendChild(btn);
+    body.appendChild(row);
+  }
+
+  const widget = new Widget({ node: body });
+
+  await showDialog({
+    title: 'Share saved',
+    body: widget,
+    buttons: [Dialog.okButton()]
+  });
+}
+
+async function promptServerRestart(folderName: string): Promise<void> {
+  const result = await showDialog({
+    title: 'Restart server to mount shared folder',
+    body:
+      `"${folderName}" will appear under /shared/ only after your server restarts — ` +
+      `KubeSpawner wires shared volumes at spawn time.\n\n` +
+      `Restart now? You'll be taken to the JupyterHub control panel to stop and start ` +
+      `your server. Save any unsaved work first.`,
+    buttons: [
+      Dialog.cancelButton({ label: 'Later' }),
+      Dialog.okButton({ label: 'Open control panel' })
+    ]
+  });
+  if (result.button.accept) {
+    // /hub/home has explicit Stop/Start buttons and is the most reliable
+    // path across JupyterHub versions. Avoids a silent API restart which
+    // would drop unsaved notebook state without warning.
+    const origin = window.location.origin;
+    window.location.href = `${origin}/hub/home`;
+  }
+}
+
+async function copyToClipboardUniversal(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through
+  }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
 
 export default extension;
