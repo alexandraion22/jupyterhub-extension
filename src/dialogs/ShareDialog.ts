@@ -1,70 +1,55 @@
 import { Widget } from '@lumino/widgets';
-import {
-  AccessLevel,
-  GeneralAccess,
-  Permission,
-  Recipient,
-  Role
-} from '../api';
+import { AccessLevel, GeneralAccess, Permission, Role } from '../api';
 
 const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-export interface ShareDialogResult {
-  recipients: Recipient[];
-  removed: string[];
-  generalAccess: GeneralAccess;
-  linkAccessLevel: AccessLevel;
-}
-
-interface ExistingRecipient {
-  email: string;
-  originalRole: Role;
+export interface ShareController {
+  /** Add or update a recipient's role. Returns up-to-date share link (may be null until first action). */
+  upsertRecipient(email: string, role: Role): Promise<string | null>;
+  /** Remove a recipient. */
+  revokeRecipient(email: string): Promise<void>;
+  /** Change general access + link role. Returns up-to-date share link (may be null until first action). */
+  setGeneralAccess(mode: GeneralAccess, level: AccessLevel): Promise<string | null>;
+  /** Current share link, if one exists. */
+  currentShareLink(): string | null;
 }
 
 interface RecipientRow {
   container: HTMLDivElement;
   email: string;
   role: Role;
-  isExisting: boolean;
+  roleSelect: HTMLSelectElement;
+  removeBtn: HTMLButtonElement;
 }
 
 export class ShareDialogBody extends Widget {
   private emailInput: HTMLInputElement;
-  private roleSelect: HTMLSelectElement;
+  private addRoleSelect: HTMLSelectElement;
+  private addBtn: HTMLButtonElement;
   private chipsContainer: HTMLDivElement;
   private peopleHeading: HTMLDivElement;
   private errorSpan: HTMLSpanElement;
+  private statusSpan: HTMLSpanElement;
   private generalAccessSelect: HTMLSelectElement;
   private linkRoleSelect: HTMLSelectElement;
   private linkHint: HTMLSpanElement;
   private copyLinkBtn: HTMLButtonElement;
   private rows: RecipientRow[] = [];
-  private readonly ownerEmail: string;
-  private readonly existing: ExistingRecipient[];
 
   constructor(
     private readonly folderName: string,
     private readonly ownerDomain: string,
-    private readonly shareLink: string | null,
     initialGeneralAccess: GeneralAccess = 'restricted',
     initialLinkAccess: AccessLevel = 'read',
     existingPermissions: Permission[] = [],
-    ownerEmail = ''
+    private readonly ownerEmail = '',
+    private readonly controller?: ShareController
   ) {
     super({ node: document.createElement('div') });
-    this.node.style.minWidth = '480px';
+    this.node.style.minWidth = '500px';
     this.node.style.fontSize = '13px';
 
-    this.ownerEmail = ownerEmail;
-    this.existing = existingPermissions
-      .filter(p => p.user_email !== ownerEmail)
-      .map(p => ({
-        email: p.user_email,
-        originalRole: p.access_level === 'write' ? 'editor' : 'viewer'
-      }));
-
     this.peopleHeading = document.createElement('div');
-    this.peopleHeading.textContent = 'People with access';
     this.peopleHeading.style.fontWeight = '600';
     this.peopleHeading.style.marginBottom = '6px';
     this.node.appendChild(this.peopleHeading);
@@ -81,8 +66,14 @@ export class ShareDialogBody extends Widget {
     if (ownerEmail) {
       this.renderOwnerChip(ownerEmail);
     }
-    for (const e of this.existing) {
-      this.addRow(e.email, e.originalRole, /*isExisting*/ true);
+    for (const p of existingPermissions) {
+      if (p.user_email === ownerEmail) {
+        continue;
+      }
+      this.addRow(
+        p.user_email,
+        p.access_level === 'write' ? 'editor' : 'viewer'
+      );
     }
     this.updatePeopleHeading();
 
@@ -103,25 +94,25 @@ export class ShareDialogBody extends Widget {
     this.emailInput.style.flex = '1';
     this.emailInput.style.padding = '4px 6px';
     this.emailInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ',' || e.key === ' ') {
+      if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
-        this.commitCurrentInput();
+        void this.commitCurrentInput();
       }
     });
 
-    this.roleSelect = this.buildRoleSelect('viewer');
+    this.addRoleSelect = buildRoleSelect('viewer');
 
-    const addBtn = document.createElement('button');
-    addBtn.textContent = 'Add';
-    addBtn.style.cursor = 'pointer';
-    addBtn.addEventListener('click', e => {
+    this.addBtn = document.createElement('button');
+    this.addBtn.textContent = 'Add';
+    this.addBtn.style.cursor = 'pointer';
+    this.addBtn.addEventListener('click', e => {
       e.preventDefault();
-      this.commitCurrentInput();
+      void this.commitCurrentInput();
     });
 
     addRow.appendChild(this.emailInput);
-    addRow.appendChild(this.roleSelect);
-    addRow.appendChild(addBtn);
+    addRow.appendChild(this.addRoleSelect);
+    addRow.appendChild(this.addBtn);
     this.node.appendChild(addRow);
 
     this.errorSpan = document.createElement('span');
@@ -130,6 +121,13 @@ export class ShareDialogBody extends Widget {
     this.errorSpan.style.display = 'none';
     this.errorSpan.style.marginBottom = '8px';
     this.node.appendChild(this.errorSpan);
+
+    this.statusSpan = document.createElement('span');
+    this.statusSpan.style.color = '#888';
+    this.statusSpan.style.fontSize = '12px';
+    this.statusSpan.style.display = 'none';
+    this.statusSpan.style.marginBottom = '8px';
+    this.node.appendChild(this.statusSpan);
 
     const divider = document.createElement('hr');
     divider.style.border = 'none';
@@ -150,24 +148,23 @@ export class ShareDialogBody extends Widget {
     gaRow.style.marginBottom = '6px';
 
     this.generalAccessSelect = document.createElement('select');
-    const restrictedOpt = document.createElement('option');
-    restrictedOpt.value = 'restricted';
-    restrictedOpt.textContent = 'Restricted';
-    const domainOpt = document.createElement('option');
-    domainOpt.value = 'domain';
-    domainOpt.textContent = ownerDomain
-      ? `Anyone at ${ownerDomain}`
-      : 'Anyone in your domain';
-    this.generalAccessSelect.appendChild(restrictedOpt);
-    this.generalAccessSelect.appendChild(domainOpt);
-    this.generalAccessSelect.value = initialGeneralAccess;
-    this.generalAccessSelect.addEventListener('change', () =>
-      this.updateLinkState()
+    addOption(this.generalAccessSelect, 'restricted', 'Restricted');
+    addOption(
+      this.generalAccessSelect,
+      'domain',
+      ownerDomain ? `Anyone at ${ownerDomain}` : 'Anyone in your domain'
     );
+    this.generalAccessSelect.value = initialGeneralAccess;
+    this.generalAccessSelect.addEventListener('change', () => {
+      void this.commitGeneralAccess();
+    });
 
-    this.linkRoleSelect = this.buildRoleSelect(
+    this.linkRoleSelect = buildRoleSelect(
       initialLinkAccess === 'write' ? 'editor' : 'viewer'
     );
+    this.linkRoleSelect.addEventListener('change', () => {
+      void this.commitGeneralAccess();
+    });
 
     gaRow.appendChild(this.generalAccessSelect);
     gaRow.appendChild(this.linkRoleSelect);
@@ -217,43 +214,34 @@ export class ShareDialogBody extends Widget {
     this.peopleHeading.textContent = `People with access (${activeCount})`;
   }
 
-  private buildRoleSelect(initial: Role): HTMLSelectElement {
-    const select = document.createElement('select');
-    for (const [value, label] of [
-      ['viewer', 'Viewer'],
-      ['editor', 'Editor']
-    ] as const) {
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      if (value === initial) {
-        opt.selected = true;
-      }
-      select.appendChild(opt);
+  private setBusy(msg: string | null): void {
+    if (msg === null) {
+      this.statusSpan.style.display = 'none';
+      return;
     }
-    return select;
+    this.statusSpan.textContent = msg;
+    this.statusSpan.style.display = 'block';
   }
 
   private updateLinkState(): void {
     const domain = this.generalAccessSelect.value === 'domain';
     this.linkRoleSelect.disabled = !domain;
-    // Button is usable whenever there's a link; domain toggle doesn't
-    // prevent copying (if we have a link, they can share it).
-    this.copyLinkBtn.disabled = !this.shareLink;
-    if (!this.shareLink) {
+    const link = this.controller?.currentShareLink() ?? null;
+    this.copyLinkBtn.disabled = !link;
+    if (!link) {
       this.linkHint.textContent =
-        'Save the share first, then come back to copy the link.';
+        'Link becomes available once the folder has been shared with at least one recipient or domain access is enabled.';
     } else if (domain) {
       this.linkHint.textContent = `Anyone at ${
         this.ownerDomain || 'your domain'
-      } with the link can access “${this.folderName}”.`;
+      } with this link can access “${this.folderName}”.`;
     } else {
       this.linkHint.textContent =
-        'Link below grants access only to explicitly-added people.';
+        'Only people explicitly added above can use this link.';
     }
   }
 
-  private commitCurrentInput(): void {
+  private async commitCurrentInput(): Promise<void> {
     const email = this.emailInput.value.trim().replace(/,$/, '');
     if (!email) {
       return;
@@ -270,26 +258,40 @@ export class ShareDialogBody extends Widget {
       this.showError(`${email} is already in the list.`);
       return;
     }
+    const role = this.addRoleSelect.value as Role;
     this.hideError();
-    this.addRow(email, this.roleSelect.value as Role, /*isExisting*/ false);
+    if (!this.controller) {
+      return;
+    }
+
+    // Optimistic: render immediately. Revert on failure.
+    const row = this.addRow(email, role);
     this.emailInput.value = '';
     this.emailInput.focus();
     this.updatePeopleHeading();
+    this.setBusy(`Sharing with ${email}…`);
+    try {
+      await this.controller.upsertRecipient(email, role);
+      this.setBusy(null);
+      this.updateLinkState();
+    } catch (err) {
+      this.removeRowNode(row);
+      this.updatePeopleHeading();
+      this.setBusy(null);
+      this.showError(
+        err instanceof Error ? err.message : 'Failed to share with this user.'
+      );
+    }
   }
 
-  private addRow(email: string, role: Role, isExisting: boolean): void {
-    const row: RecipientRow = {
-      container: document.createElement('div'),
-      email,
-      role,
-      isExisting
-    };
-    row.container.style.display = 'flex';
-    row.container.style.alignItems = 'center';
-    row.container.style.gap = '8px';
-    row.container.style.padding = '3px 6px';
-    row.container.style.background = isExisting ? '#eef5ff' : '#f5f5f5';
-    row.container.style.borderRadius = '4px';
+  private addRow(email: string, role: Role): RecipientRow {
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.alignItems = 'center';
+    container.style.gap = '8px';
+    container.style.padding = '3px 6px';
+    container.style.background = '#eef5ff';
+    container.style.borderRadius = '4px';
 
     const emailSpan = document.createElement('span');
     emailSpan.textContent = email;
@@ -297,10 +299,7 @@ export class ShareDialogBody extends Widget {
     emailSpan.style.overflow = 'hidden';
     emailSpan.style.textOverflow = 'ellipsis';
 
-    const rowRoleSelect = this.buildRoleSelect(role);
-    rowRoleSelect.addEventListener('change', () => {
-      row.role = rowRoleSelect.value as Role;
-    });
+    const roleSelect = buildRoleSelect(role);
 
     const removeBtn = document.createElement('button');
     removeBtn.textContent = '×';
@@ -309,26 +308,101 @@ export class ShareDialogBody extends Widget {
     removeBtn.style.border = 'none';
     removeBtn.style.background = 'transparent';
     removeBtn.style.fontSize = '16px';
-    removeBtn.addEventListener('click', e => {
-      e.preventDefault();
-      this.rows = this.rows.filter(r => r !== row);
-      row.container.remove();
-      this.updatePeopleHeading();
+
+    container.appendChild(emailSpan);
+    container.appendChild(roleSelect);
+    container.appendChild(removeBtn);
+    this.chipsContainer.appendChild(container);
+
+    const row: RecipientRow = { container, email, role, roleSelect, removeBtn };
+    this.rows.push(row);
+
+    roleSelect.addEventListener('change', async () => {
+      const prev = row.role;
+      const next = roleSelect.value as Role;
+      if (prev === next || !this.controller) {
+        return;
+      }
+      this.setBusy(`Updating ${email}…`);
+      try {
+        await this.controller.upsertRecipient(email, next);
+        row.role = next;
+        this.setBusy(null);
+      } catch (err) {
+        roleSelect.value = prev;
+        this.setBusy(null);
+        this.showError(
+          err instanceof Error
+            ? err.message
+            : `Failed to update ${email}'s access.`
+        );
+      }
     });
 
-    row.container.appendChild(emailSpan);
-    row.container.appendChild(rowRoleSelect);
-    row.container.appendChild(removeBtn);
+    removeBtn.addEventListener('click', async () => {
+      if (!this.controller) {
+        this.removeRowNode(row);
+        this.updatePeopleHeading();
+        return;
+      }
+      const prev = removeBtn.textContent;
+      removeBtn.textContent = '…';
+      removeBtn.disabled = true;
+      roleSelect.disabled = true;
+      this.setBusy(`Removing ${email}…`);
+      try {
+        await this.controller.revokeRecipient(email);
+        this.removeRowNode(row);
+        this.updatePeopleHeading();
+        this.setBusy(null);
+      } catch (err) {
+        removeBtn.textContent = prev;
+        removeBtn.disabled = false;
+        roleSelect.disabled = false;
+        this.setBusy(null);
+        this.showError(
+          err instanceof Error ? err.message : `Failed to remove ${email}.`
+        );
+      }
+    });
 
-    this.chipsContainer.appendChild(row.container);
-    this.rows.push(row);
+    return row;
+  }
+
+  private removeRowNode(row: RecipientRow): void {
+    this.rows = this.rows.filter(r => r !== row);
+    row.container.remove();
+  }
+
+  private async commitGeneralAccess(): Promise<void> {
+    if (!this.controller) {
+      return;
+    }
+    const mode = this.generalAccessSelect.value as GeneralAccess;
+    const linkRole = this.linkRoleSelect.value as Role;
+    const level: AccessLevel = linkRole === 'editor' ? 'write' : 'read';
+
+    this.setBusy('Updating general access…');
+    try {
+      await this.controller.setGeneralAccess(mode, level);
+      this.setBusy(null);
+      this.updateLinkState();
+    } catch (err) {
+      this.setBusy(null);
+      this.showError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to update general access.'
+      );
+    }
   }
 
   private async copyLink(): Promise<void> {
-    if (!this.shareLink) {
+    const link = this.controller?.currentShareLink() ?? null;
+    if (!link) {
       return;
     }
-    const ok = await tryCopyToClipboard(this.shareLink);
+    const ok = await tryCopyToClipboard(link);
     if (ok) {
       const original = this.copyLinkBtn.textContent;
       this.copyLinkBtn.textContent = 'Copied!';
@@ -337,7 +411,7 @@ export class ShareDialogBody extends Widget {
       }, 1500);
     } else {
       this.showError(
-        `Copy failed. The link is: ${this.shareLink} — select and copy it manually.`
+        `Copy failed. The link is: ${link} — select and copy it manually.`
       );
     }
   }
@@ -345,59 +419,37 @@ export class ShareDialogBody extends Widget {
   private showError(msg: string): void {
     this.errorSpan.textContent = msg;
     this.errorSpan.style.display = 'block';
+    setTimeout(() => this.hideError(), 5000);
   }
 
   private hideError(): void {
     this.errorSpan.style.display = 'none';
   }
 
-  validate(): boolean {
-    if (this.emailInput.value.trim()) {
-      this.commitCurrentInput();
-      if (this.errorSpan.style.display === 'block') {
-        return false;
-      }
-    }
-    this.hideError();
-    return true;
-  }
-
-  getValue(): ShareDialogResult {
-    const generalAccess = this.generalAccessSelect.value as GeneralAccess;
-    const linkRole = this.linkRoleSelect.value as Role;
-
-    const finalEmails = new Set(this.rows.map(r => r.email.toLowerCase()));
-    const removed = this.existing
-      .map(e => e.email)
-      .filter(email => !finalEmails.has(email.toLowerCase()));
-
-    // Only re-send recipients that are new or whose role changed.
-    const recipients: Recipient[] = this.rows
-      .filter(r => {
-        if (!r.isExisting) {
-          return true;
-        }
-        const orig = this.existing.find(
-          e => e.email.toLowerCase() === r.email.toLowerCase()
-        );
-        return orig?.originalRole !== r.role;
-      })
-      .map(r => ({ email: r.email, role: r.role }));
-
-    return {
-      recipients,
-      removed,
-      generalAccess,
-      linkAccessLevel: linkRole === 'editor' ? 'write' : 'read'
-    };
+  /**
+   * Re-render the link button/hint — used after the controller mutates its
+   * internal state (e.g. first shareFolder call populates the share link).
+   */
+  refreshLinkState(): void {
+    this.updateLinkState();
   }
 }
 
-/**
- * Try navigator.clipboard (requires secure context / HTTPS), fall back to a
- * hidden-textarea + document.execCommand('copy') which works from any
- * user-initiated event in every browser we care about.
- */
+function buildRoleSelect(initial: Role): HTMLSelectElement {
+  const select = document.createElement('select');
+  addOption(select, 'viewer', 'Viewer');
+  addOption(select, 'editor', 'Editor');
+  select.value = initial;
+  return select;
+}
+
+function addOption(select: HTMLSelectElement, value: string, label: string): void {
+  const opt = document.createElement('option');
+  opt.value = value;
+  opt.textContent = label;
+  select.appendChild(opt);
+}
+
 async function tryCopyToClipboard(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {

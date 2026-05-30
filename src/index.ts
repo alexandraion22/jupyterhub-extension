@@ -6,6 +6,7 @@ import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
 import { showDialog, Dialog, showErrorMessage } from '@jupyterlab/apputils';
 import { buildIcon } from '@jupyterlab/ui-components';
 import { Contents } from '@jupyterlab/services';
+import { Widget } from '@lumino/widgets';
 
 import {
   fetchApiToken,
@@ -16,12 +17,12 @@ import {
   fetchMe,
   acceptShare,
   buildShareLink,
+  AccessLevel,
+  GeneralAccess,
   Permission,
   ShareSummary
 } from './api';
-import { Widget } from '@lumino/widgets';
-import { ShareDialogBody } from './dialogs/ShareDialog';
-import { PermissionsDialogBody } from './dialogs/PermissionsDialog';
+import { ShareDialogBody, ShareController } from './dialogs/ShareDialog';
 import { SharedWithMePanel } from './widgets/SharedWithMePanel';
 
 const SHARE_LINK_PARAM = 'share-link';
@@ -80,9 +81,6 @@ const extension: JupyterFrontEndPlugin<void> = {
       const path = share.is_owner
         ? share.display_name
         : `shared/${share.display_name}`;
-      // Check the path exists before calling open-path. Shares that were
-      // granted after this pod spawned don't have a mount yet — the user
-      // must restart the server so KubeSpawner picks up the new volume.
       try {
         await app.serviceManager.contents.get(path, { content: false });
       } catch {
@@ -102,7 +100,7 @@ const extension: JupyterFrontEndPlugin<void> = {
     // --- Share Folder command ---
     app.commands.addCommand('jlab-examples/context-menu:share', {
       label: 'Share Folder',
-      caption: 'Share this folder with another user',
+      caption: 'Share this folder and manage access',
       icon: buildIcon,
       isEnabled: () => {
         const item = getSelectedItem();
@@ -127,15 +125,20 @@ const extension: JupyterFrontEndPlugin<void> = {
           return;
         }
 
+        // Snapshot of the share (if any) as it exists at dialog-open time.
+        // As the user mutates things the controller refreshes these.
+        let volumeName: string | null = null;
+        let generalAccess: GeneralAccess = 'restricted';
+        let linkAccessLevel: AccessLevel = 'read';
+        let existingPermissions: Permission[] = [];
+
         const existing = myShares.find(
           s => s.is_owner && s.display_name === file.name
         );
-        const shareLink = existing ? buildShareLink(existing.volume_name) : null;
-
-        // If already shared, pull the current ACL so the dialog can render
-        // existing people with role dropdowns + remove buttons.
-        let existingPermissions: Permission[] = [];
         if (existing) {
+          volumeName = existing.volume_name;
+          generalAccess = existing.general_access;
+          linkAccessLevel = existing.link_access_level;
           try {
             const perms = await fetchPermissions(file.name, token);
             existingPermissions = perms.permissions;
@@ -144,131 +147,70 @@ const extension: JupyterFrontEndPlugin<void> = {
           }
         }
 
-        const dialogBody = new ShareDialogBody(
+        // Declared before controller so the controller can call
+        // dialogBody.refreshLinkState() after state changes.
+        let dialogBody: ShareDialogBody;
+
+        const controller: ShareController = {
+          upsertRecipient: async (email, role) => {
+            const response = await shareFolder(
+              {
+                directoryName: file.name,
+                recipients: [{ email, role }],
+                generalAccess,
+                linkAccessLevel
+              },
+              token
+            );
+            volumeName = response.volume_name;
+            generalAccess = response.general_access;
+            linkAccessLevel = response.link_access_level;
+            await refreshShares();
+            dialogBody.refreshLinkState();
+            return buildShareLink(volumeName);
+          },
+          revokeRecipient: async email => {
+            if (!volumeName) {
+              return;
+            }
+            await revokeAccess(volumeName, email, token);
+            await refreshShares();
+          },
+          setGeneralAccess: async (mode, level) => {
+            const response = await shareFolder(
+              {
+                directoryName: file.name,
+                recipients: [],
+                generalAccess: mode,
+                linkAccessLevel: level
+              },
+              token
+            );
+            volumeName = response.volume_name;
+            generalAccess = response.general_access;
+            linkAccessLevel = response.link_access_level;
+            await refreshShares();
+            dialogBody.refreshLinkState();
+            return buildShareLink(volumeName);
+          },
+          currentShareLink: () =>
+            volumeName ? buildShareLink(volumeName) : null
+        };
+
+        dialogBody = new ShareDialogBody(
           file.name,
           ownerDomain,
-          shareLink,
-          existing?.general_access ?? 'restricted',
-          existing?.link_access_level ?? 'read',
+          generalAccess,
+          linkAccessLevel,
           existingPermissions,
-          myEmail
+          myEmail,
+          controller
         );
 
-        const result = await showDialog({
+        await showDialog({
           title: `Share "${file.name}"`,
           body: dialogBody,
-          buttons: [Dialog.cancelButton(), Dialog.okButton({ label: 'Save' })]
-        });
-
-        if (!result.button.accept || !dialogBody.validate()) {
-          return;
-        }
-
-        const { recipients, removed, generalAccess, linkAccessLevel } =
-          dialogBody.getValue();
-
-        try {
-          // We always call shareFolder so general-access changes propagate
-          // even when no recipients are being added/updated. The backend
-          // upserts on `recipients` and treats an empty array as a no-op.
-          const response = await shareFolder(
-            {
-              directoryName: file.name,
-              recipients,
-              generalAccess,
-              linkAccessLevel
-            },
-            token
-          );
-
-          // Apply removals last so we don't briefly lose access
-          // intermediate-state.
-          for (const email of removed) {
-            try {
-              await revokeAccess(response.volume_name, email, token);
-            } catch (err) {
-              console.warn(`Revoke failed for ${email}:`, err);
-            }
-          }
-
-          await refreshShares();
-
-          const link = buildShareLink(response.volume_name);
-          const messages: string[] = [];
-          if (recipients.length) {
-            messages.push(
-              `Added / updated: ${recipients.map(r => r.email).join(', ')}.`
-            );
-          }
-          if (removed.length) {
-            messages.push(`Removed: ${removed.join(', ')}.`);
-          }
-          if (generalAccess === 'domain' && ownerDomain) {
-            messages.push(
-              `Anyone at ${ownerDomain} can ${
-                linkAccessLevel === 'write' ? 'edit' : 'view'
-              } this folder via the link.`
-            );
-          }
-          messages.push(
-            'Recipients will see the folder under /shared/ after restarting their server.'
-          );
-
-          await showSuccessDialog(
-            messages.join('\n\n'),
-            generalAccess === 'domain' ? link : null
-          );
-        } catch (error) {
-          void showErrorMessage(
-            'Sharing Failed',
-            error instanceof Error ? error.message : String(error)
-          );
-        }
-      }
-    });
-
-    // --- View Permissions command ---
-    app.commands.addCommand('jlab-examples/context-menu:view-permissions', {
-      label: 'View Permissions',
-      caption: 'View who has access to this folder',
-      icon: buildIcon,
-      isEnabled: () => isDirectory(getSelectedItem()),
-      isVisible: () => isDirectory(getSelectedItem()),
-      execute: async () => {
-        const file = getSelectedItem();
-        if (!file || !isDirectory(file)) {
-          return;
-        }
-
-        const token = await fetchApiToken();
-        if (!token) {
-          void showErrorMessage(
-            'Authentication Error',
-            'Session expired or token unavailable. Please restart your server.'
-          );
-          return;
-        }
-
-        const dialogBody = new PermissionsDialogBody();
-
-        fetchPermissions(file.name, token)
-          .then(data => {
-            dialogBody.setPermissions(data.permissions, data.owner);
-            dialogBody.onRevoke = async (userEmail: string) => {
-              await revokeAccess(data.volume_name, userEmail, token);
-              await refreshShares();
-            };
-          })
-          .catch(err => {
-            const msg =
-              err instanceof Error ? err.message : 'Failed to load permissions';
-            dialogBody.setError(msg);
-          });
-
-        await showDialog({
-          title: `Permissions: ${file.name}`,
-          body: dialogBody,
-          buttons: [Dialog.okButton({ label: 'Close' })]
+          buttons: [Dialog.okButton({ label: 'Done' })]
         });
       }
     });
@@ -321,8 +263,6 @@ const extension: JupyterFrontEndPlugin<void> = {
       try {
         const res = await acceptShare(volume, token);
         await refreshShares();
-        // The share was recorded, but the mount only takes effect on the
-        // next pod spawn. Prompt the user to restart right away.
         const alreadyMember = (res as unknown as { already_member?: boolean })
           .already_member;
         if (alreadyMember) {
@@ -333,7 +273,8 @@ const extension: JupyterFrontEndPlugin<void> = {
           });
         } else {
           await promptServerRestart(
-            (res as unknown as { display_name?: string }).display_name ?? 'the shared folder'
+            (res as unknown as { display_name?: string }).display_name ??
+              'the shared folder'
           );
         }
       } catch (err) {
@@ -352,7 +293,6 @@ const extension: JupyterFrontEndPlugin<void> = {
       }
     };
 
-    // --- Boot ---
     void (async () => {
       const me = await fetchMe();
       if (me) {
@@ -365,66 +305,50 @@ const extension: JupyterFrontEndPlugin<void> = {
   }
 };
 
-/**
- * Success dialog with a copyable link when general access = domain.
- * The link lives in a readonly <input> so the user can click it and Cmd/Ctrl+A
- * selects the whole thing even when clipboard APIs fail.
- */
-async function showSuccessDialog(
-  messageText: string,
-  link: string | null
-): Promise<void> {
-  const body = document.createElement('div');
-  body.style.fontSize = '13px';
-  body.style.minWidth = '420px';
+// --- Logged-in user indicator in the top-right corner ---
+// Renders the user's email as text next to the collaboration avatar.
+// Source order: native JupyterLab identity (instant, no network) first,
+// then refined via the sharing API's /me (authoritative email) if reachable.
+const userIndicator: JupyterFrontEndPlugin<void> = {
+  id: '@jupyterlab-examples/context-menu:user-indicator',
+  description: 'Shows the logged-in user email in the top bar.',
+  autoStart: true,
+  activate: (app: JupyterFrontEnd) => {
+    const node = document.createElement('div');
+    node.className = 'jp-UserEmailIndicator';
+    const widget = new Widget({ node });
+    widget.id = 'jp-user-email-indicator';
 
-  for (const line of messageText.split('\n\n')) {
-    const p = document.createElement('p');
-    p.textContent = line;
-    p.style.margin = '0 0 8px';
-    body.appendChild(p);
-  }
+    const setEmail = (email: string): void => {
+      if (!email) {
+        return;
+      }
+      node.textContent = email;
+      node.title = email;
+    };
 
-  if (link) {
-    const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.gap = '6px';
-    row.style.marginTop = '8px';
+    // 1. Instant: JupyterLab's own user identity. Under JupyterHub the
+    //    username is the SAML `mail` attribute, i.e. the email.
+    const userManager = app.serviceManager.user;
+    const renderFromIdentity = (): void => {
+      const identity = userManager.identity;
+      setEmail(identity?.username || identity?.name || '');
+    };
+    void userManager.ready.then(renderFromIdentity);
+    userManager.userChanged.connect(renderFromIdentity);
 
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.readOnly = true;
-    input.value = link;
-    input.style.flex = '1';
-    input.style.fontSize = '12px';
-    input.style.padding = '4px 6px';
-    input.addEventListener('focus', () => input.select());
-
-    const btn = document.createElement('button');
-    btn.textContent = 'Copy link';
-    btn.style.cursor = 'pointer';
-    btn.style.padding = '3px 10px';
-    btn.addEventListener('click', async () => {
-      const ok = await copyToClipboardUniversal(link);
-      btn.textContent = ok ? 'Copied!' : 'Copy failed';
-      setTimeout(() => {
-        btn.textContent = 'Copy link';
-      }, 1500);
+    // 2. Authoritative: the sharing API's /me endpoint.
+    void fetchMe().then(me => {
+      if (me?.email) {
+        setEmail(me.email);
+      }
     });
 
-    row.appendChild(input);
-    row.appendChild(btn);
-    body.appendChild(row);
+    // rank just below the collaboration user menu (1000) so this text
+    // sits immediately to the left of the avatar in the right cluster.
+    app.shell.add(widget, 'top', { rank: 999 });
   }
-
-  const widget = new Widget({ node: body });
-
-  await showDialog({
-    title: 'Share saved',
-    body: widget,
-    buttons: [Dialog.okButton()]
-  });
-}
+};
 
 async function promptServerRestart(folderName: string): Promise<void> {
   const result = await showDialog({
@@ -440,37 +364,9 @@ async function promptServerRestart(folderName: string): Promise<void> {
     ]
   });
   if (result.button.accept) {
-    // /hub/home has explicit Stop/Start buttons and is the most reliable
-    // path across JupyterHub versions. Avoids a silent API restart which
-    // would drop unsaved notebook state without warning.
     const origin = window.location.origin;
     window.location.href = `${origin}/hub/home`;
   }
 }
 
-async function copyToClipboardUniversal(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(text);
-      return true;
-    }
-  } catch {
-    // fall through
-  }
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.left = '-9999px';
-    document.body.appendChild(ta);
-    ta.focus();
-    ta.select();
-    const ok = document.execCommand('copy');
-    document.body.removeChild(ta);
-    return ok;
-  } catch {
-    return false;
-  }
-}
-
-export default extension;
+export default [extension, userIndicator];

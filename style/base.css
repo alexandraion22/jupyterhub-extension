@@ -4,6 +4,19 @@
     https://jupyterlab.readthedocs.io/en/stable/developer/css.html
 */
 
+.jp-UserEmailIndicator {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 8px;
+  font-size: var(--jp-ui-font-size1, 13px);
+  color: var(--jp-ui-font-color1, #333);
+  white-space: nowrap;
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .jp-DirListing-item.jp-shared-folder .jp-DirListing-itemText::after {
   content: ' \2022 shared';
   font-size: 11px;
