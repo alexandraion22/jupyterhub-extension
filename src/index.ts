@@ -432,6 +432,16 @@ const colabRunButton: JupyterFrontEndPlugin<void> = {
   autoStart: true,
   requires: [INotebookTracker],
   activate: (app: JupyterFrontEnd, tracker: INotebookTracker) => {
+    // Toggle a "running" class on a cell while it executes (from ANY trigger:
+    // our gutter button, Shift+Enter, the Run menu) so a spinner shows in the
+    // gutter and the user knows it's working, not blocked.
+    NotebookActions.executionScheduled.connect((_, { cell }) => {
+      cell.node.classList.add('jp-ColabRunning');
+    });
+    NotebookActions.executed.connect((_, { cell }) => {
+      cell.node.classList.remove('jp-ColabRunning');
+    });
+
     tracker.widgetAdded.connect((_, panel) => {
       const notebook = panel.content;
       panel.node.addEventListener(

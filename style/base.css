@@ -119,11 +119,20 @@
 .jp-ShareDialog .jp-ShareDialog-linkbox {
   box-sizing: border-box;
   height: 36px;
+  min-height: 36px;
+  max-height: 36px;
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 34px;
   font-size: var(--jp-ui-font-size1, 13px);
   border-radius: 0;
   border: 1px solid var(--jp-border-color1, #bdbdbd);
   background: var(--jp-layout-color1, #fff);
   color: var(--jp-ui-font-color1, #202124);
+}
+.jp-ShareDialog-addrow input.jp-mod-styled {
+  padding-left: 10px;
+  padding-right: 10px;
 }
 .jp-ShareDialog select.jp-ShareDialog-role {
   min-width: 96px;
@@ -189,6 +198,37 @@
   border-style: solid;
   border-width: 6px 0 6px 10px;
   border-color: transparent transparent transparent var(--jp-brand-color1, #1a73e8);
+}
+
+/* While a code cell is executing, show a spinner in the gutter (overrides the
+   hover play button) so the user sees it's working, not blocked.
+   The jp-ColabRunning class is toggled in index.ts via NotebookActions signals. */
+.jp-Notebook .jp-CodeCell.jp-ColabRunning .jp-InputArea-prompt,
+.jp-Notebook .jp-CodeCell.jp-ColabRunning:hover .jp-InputArea-prompt {
+  color: transparent;
+}
+.jp-Notebook .jp-CodeCell.jp-ColabRunning .jp-InputArea-prompt::before {
+  display: none;
+}
+.jp-Notebook .jp-CodeCell.jp-ColabRunning .jp-InputArea-prompt::after,
+.jp-Notebook .jp-CodeCell.jp-ColabRunning:hover .jp-InputArea-prompt::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid var(--jp-border-color2, #b0b0b0);
+  border-top-color: var(--jp-brand-color1, #1a73e8);
+  border-radius: 50%;
+  box-sizing: border-box;
+  animation: jp-colab-spin 0.7s linear infinite;
+}
+@keyframes jp-colab-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 /* High specificity (.jp-ShareDialog prefix) so JupyterLab's `.jp-Dialog button`
    rule can't override the text color. border-radius:0 keeps every control square
