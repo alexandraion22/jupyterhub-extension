@@ -147,6 +147,10 @@
 .jp-ShareDialog .jp-select-wrapper {
   margin: 0 !important;
   width: auto !important;
+  padding: 0 !important;
+  height: 36px !important;
+  align-self: center;
+  justify-content: center;
 }
 .jp-ShareDialog .jp-select-wrapper > :not(select) {
   display: none !important;
