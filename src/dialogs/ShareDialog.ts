@@ -236,7 +236,9 @@ export class ShareDialogBody extends Widget {
   private updateLinkState(): void {
     const mode = this.generalAccessSelect.value as GeneralAccess;
     const linkBased = mode !== 'restricted';
-    this.linkRoleSelect.disabled = !linkBased;
+    // Hide (not just disable) the viewer/editor role when Restricted — a link
+    // role is meaningless without link/domain access.
+    this.linkRoleSelect.style.display = linkBased ? '' : 'none';
 
     const icons: Record<GeneralAccess, string> = {
       restricted: '🔒',

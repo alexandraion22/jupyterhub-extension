@@ -317,6 +317,9 @@
   font-size: 12px;
   color: var(--jp-ui-font-color2, #5f6368);
   margin: 8px 0 12px;
+  /* Reserve 2 lines so switching access modes (1- vs 2-line hints) doesn't
+     resize the dialog. */
+  min-height: 2.6em;
 }
 .jp-ShareDialog-linkrow {
   display: flex;
