@@ -434,12 +434,46 @@ const colabRunButton: JupyterFrontEndPlugin<void> = {
   activate: (app: JupyterFrontEnd, tracker: INotebookTracker) => {
     // Toggle a "running" class on a cell while it executes (from ANY trigger:
     // our gutter button, Shift+Enter, the Run menu) so a spinner shows in the
-    // gutter and the user knows it's working, not blocked.
+    // gutter and the user knows it's working, not blocked. On completion, show
+    // how long it took in the left gutter (like Google Colab).
+    const startTimes = new WeakMap<object, number>();
+    const fmtDuration = (ms: number): string => {
+      if (ms < 1000) {
+        return `${Math.round(ms)} ms`;
+      }
+      const s = ms / 1000;
+      if (s < 60) {
+        return `${s.toFixed(s < 10 ? 1 : 0)} s`;
+      }
+      const m = Math.floor(s / 60);
+      return `${m}m ${Math.round(s % 60)}s`;
+    };
     NotebookActions.executionScheduled.connect((_, { cell }) => {
       cell.node.classList.add('jp-ColabRunning');
+      startTimes.set(cell, performance.now());
     });
     NotebookActions.executed.connect((_, { cell }) => {
       cell.node.classList.remove('jp-ColabRunning');
+      const start = startTimes.get(cell);
+      startTimes.delete(cell);
+      if (start == null || cell.model.type !== 'code') {
+        return;
+      }
+      const prompt = cell.node.querySelector(
+        '.jp-InputArea-prompt'
+      ) as HTMLElement | null;
+      if (!prompt) {
+        return;
+      }
+      let label = prompt.querySelector('.jp-ColabRunTime') as HTMLElement | null;
+      if (!label) {
+        label = document.createElement('div');
+        label.className = 'jp-ColabRunTime';
+        prompt.appendChild(label);
+      }
+      const text = fmtDuration(performance.now() - start);
+      label.textContent = text;
+      label.title = `Ran in ${text}`;
     });
 
     tracker.widgetAdded.connect((_, panel) => {

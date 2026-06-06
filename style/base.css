@@ -233,6 +233,23 @@
     transform: translate(-50%, -50%) rotate(360deg);
   }
 }
+
+/* Execution time shown under the [n]: prompt once a cell finishes. */
+.jp-ColabRunTime {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  right: 5px;
+  text-align: right;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--jp-ui-font-color3, #9e9e9e);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.jp-Notebook .jp-CodeCell.jp-ColabRunning .jp-ColabRunTime {
+  display: none;
+}
 /* High specificity (.jp-ShareDialog prefix) so JupyterLab's `.jp-Dialog button`
    rule can't override the text color. border-radius:0 keeps every control square
    and uniform. */
