@@ -138,17 +138,15 @@
 }
 /* Exactly one dropdown arrow: kill the native one (appearance:none) and draw a
    single custom chevron. */
+/* Exactly one arrow: show the browser's native dropdown arrow and remove ALL
+   background-image carets (JupyterLab's .jp-mod-styled caret was stacking with
+   ours, producing 2-3 arrows). Native menulist arrow is always singular. */
 .jp-ShareDialog select.jp-mod-styled {
-  /* !important to beat JupyterLab's own .jp-mod-styled caret/appearance rules,
-     which otherwise leave a second (native) arrow. */
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  -moz-appearance: none !important;
-  padding-right: 28px;
-  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235f6368' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
-  background-repeat: no-repeat !important;
-  background-position: right 10px center !important;
-  background-size: 12px !important;
+  -webkit-appearance: menulist !important;
+  -moz-appearance: menulist !important;
+  appearance: auto !important;
+  background-image: none !important;
+  padding-right: 24px;
 }
 .jp-ShareDialog select.jp-ShareDialog-role {
   min-width: 96px;
