@@ -179,7 +179,7 @@
 .jp-Notebook .jp-CodeCell:hover .jp-InputArea-prompt::before {
   content: '';
   position: absolute;
-  top: 50%;
+  top: 15px;
   left: 50%;
   transform: translate(-50%, -50%);
   width: 26px;
@@ -190,9 +190,9 @@
 .jp-Notebook .jp-CodeCell:hover .jp-InputArea-prompt::after {
   content: '';
   position: absolute;
-  top: 50%;
+  top: 15px;
   left: 50%;
-  transform: translate(-40%, -50%);
+  transform: translate(-35%, -50%);
   width: 0;
   height: 0;
   border-style: solid;
@@ -214,20 +214,23 @@
 .jp-Notebook .jp-CodeCell.jp-ColabRunning:hover .jp-InputArea-prompt::after {
   content: '';
   position: absolute;
-  top: 50%;
+  top: 15px;
   left: 50%;
   width: 14px;
   height: 14px;
-  margin: -7px 0 0 -7px;
   border: 2px solid var(--jp-border-color2, #b0b0b0);
   border-top-color: var(--jp-brand-color1, #1a73e8);
   border-radius: 50%;
   box-sizing: border-box;
+  /* the constant translate keeps it centered; only the rotation animates */
   animation: jp-colab-spin 0.7s linear infinite;
 }
 @keyframes jp-colab-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
   to {
-    transform: rotate(360deg);
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 /* High specificity (.jp-ShareDialog prefix) so JupyterLab's `.jp-Dialog button`
