@@ -118,7 +118,7 @@
   border-radius: 6px;
 }
 .jp-ShareDialog select.jp-mod-styled {
-  height: 30px;
+  height: 34px;
 }
 .jp-ShareDialog-role {
   min-width: 92px;
@@ -133,26 +133,65 @@
 }
 .jp-ShareDialog-addrow input.jp-mod-styled {
   flex: 1;
-  height: 36px;
+  height: 34px;
 }
 .jp-ShareDialog-linkbox {
-  font-size: 13px;
+  font-size: 12px;
+  height: 34px;
   border: 1px solid var(--jp-border-color1, #dadce0);
   border-radius: 6px;
   background: var(--jp-layout-color1, #fff);
   color: var(--jp-ui-font-color1, #202124);
-  padding: 8px 10px;
+  padding: 0 10px;
   outline: none;
 }
 .jp-ShareDialog-row:not(.is-owner):hover {
   background: var(--jp-layout-color3, #e8eaed);
 }
+
+/* ----------------------------------------------------------------------------
+   Google-Colab-style run button in the code cell's left prompt gutter
+---------------------------------------------------------------------------- */
+.jp-Notebook .jp-CodeCell .jp-InputArea-prompt {
+  cursor: pointer;
+  position: relative;
+}
+/* On hover, hide the [ ]: count and show a circular play button. */
+.jp-Notebook .jp-CodeCell:hover .jp-InputArea-prompt {
+  color: transparent;
+}
+.jp-Notebook .jp-CodeCell:hover .jp-InputArea-prompt::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--jp-layout-color2, #f1f3f4);
+}
+.jp-Notebook .jp-CodeCell:hover .jp-InputArea-prompt::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-40%, -50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent var(--jp-brand-color1, #1a73e8);
+}
 .jp-ShareDialog-btn {
   font-size: 13px;
   font-weight: 600;
   border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
+  border-radius: 6px;
+  height: 34px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
   cursor: pointer;
   background: var(--jp-brand-color1, #1a73e8);
   color: #fff;

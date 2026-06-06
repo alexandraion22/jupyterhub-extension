@@ -6,6 +6,7 @@ import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
 import { showDialog, Dialog, showErrorMessage } from '@jupyterlab/apputils';
 import { buildIcon } from '@jupyterlab/ui-components';
 import { Contents } from '@jupyterlab/services';
+import { INotebookTracker, NotebookActions } from '@jupyterlab/notebook';
 import { Widget } from '@lumino/widgets';
 
 import {
@@ -401,6 +402,64 @@ const userIndicator: JupyterFrontEndPlugin<void> = {
   }
 };
 
+// --- Remove the Table of Contents and Collaboration left-sidebar panels ---
+const trimSidebar: JupyterFrontEndPlugin<void> = {
+  id: '@jupyterlab-examples/context-menu:trim-sidebar',
+  description: 'Removes the Table of Contents and Collaboration left panels.',
+  autoStart: true,
+  activate: (app: JupyterFrontEnd) => {
+    const shouldRemove = (w: Widget): boolean =>
+      w.id.includes('table-of-contents') ||
+      w.id.includes('collaboration') ||
+      w.hasClass('jp-CollaboratorsPanel');
+    const trim = (): void => {
+      for (const w of Array.from(app.shell.widgets('left'))) {
+        if (shouldRemove(w)) {
+          w.dispose();
+        }
+      }
+    };
+    void app.restored.then(trim);
+  }
+};
+
+// --- Google-Colab-style run button on the left of each code cell ---
+// Clicking a code cell's input prompt (the `[ ]:` gutter) runs the cell.
+// CSS turns the gutter into a play button on hover (see style/base.css).
+const colabRunButton: JupyterFrontEndPlugin<void> = {
+  id: '@jupyterlab-examples/context-menu:colab-run',
+  description: 'Run a code cell by clicking a play button in its left gutter.',
+  autoStart: true,
+  requires: [INotebookTracker],
+  activate: (app: JupyterFrontEnd, tracker: INotebookTracker) => {
+    tracker.widgetAdded.connect((_, panel) => {
+      const notebook = panel.content;
+      panel.node.addEventListener(
+        'click',
+        (event: MouseEvent) => {
+          const target = event.target as HTMLElement | null;
+          if (!target?.closest('.jp-InputArea-prompt')) {
+            return;
+          }
+          const cellNode = target.closest('.jp-Cell');
+          if (!cellNode) {
+            return;
+          }
+          const idx = notebook.widgets.findIndex(w => w.node === cellNode);
+          if (idx < 0 || notebook.widgets[idx].model.type !== 'code') {
+            return;
+          }
+          event.preventDefault();
+          event.stopPropagation();
+          notebook.activeCellIndex = idx;
+          void NotebookActions.run(notebook, panel.sessionContext);
+        },
+        true
+      );
+    });
+  }
+};
+
 async function promptServerRestart(folderName: string): Promise<void> {
   const result = await showDialog({
     title: 'Restart server to mount shared folder',
@@ -420,4 +479,4 @@ async function promptServerRestart(folderName: string): Promise<void> {
   }
 }
 
-export default [extension, userIndicator];
+export default [extension, userIndicator, trimSidebar, colabRunButton];
