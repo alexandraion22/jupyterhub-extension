@@ -17,6 +17,7 @@ import {
   fetchMe,
   acceptShare,
   buildShareLink,
+  deleteVolume,
   AccessLevel,
   GeneralAccess,
   Permission,
@@ -194,7 +195,28 @@ const extension: JupyterFrontEndPlugin<void> = {
             return buildShareLink(volumeName);
           },
           currentShareLink: () =>
-            volumeName ? buildShareLink(volumeName) : null
+            volumeName ? buildShareLink(volumeName) : null,
+          ensureShareLink: async () => {
+            // Create the volume on demand so a link can be generated without
+            // first adding any recipient.
+            if (!volumeName) {
+              const response = await shareFolder(
+                {
+                  directoryName: file.name,
+                  recipients: [],
+                  generalAccess,
+                  linkAccessLevel
+                },
+                token
+              );
+              volumeName = response.volume_name;
+              generalAccess = response.general_access;
+              linkAccessLevel = response.link_access_level;
+              await refreshShares();
+              dialogBody.refreshLinkState();
+            }
+            return volumeName ? buildShareLink(volumeName) : null;
+          }
         };
 
         dialogBody = new ShareDialogBody(
@@ -248,6 +270,35 @@ const extension: JupyterFrontEndPlugin<void> = {
     };
     factory.tracker.currentChanged.connect(attachBrowserSignals);
     attachBrowserSignals();
+
+    // --- Cascade delete: when the owner deletes a shared source folder,
+    // tear the share down so it disappears for every recipient too. ---
+    app.serviceManager.contents.fileChanged.connect(async (_, change) => {
+      if (change.type !== 'delete') {
+        return;
+      }
+      const oldPath = (change.oldValue?.path ?? '').replace(/^\/+|\/+$/g, '');
+      // Shares are created from a top-level folder name; only those can match.
+      if (!oldPath || oldPath.includes('/') || oldPath.startsWith('shared')) {
+        return;
+      }
+      const owned = myShares.find(
+        s => s.is_owner && s.display_name === oldPath
+      );
+      if (!owned) {
+        return;
+      }
+      const token = await fetchApiToken();
+      if (!token) {
+        return;
+      }
+      try {
+        await deleteVolume(owned.volume_name, token);
+        await refreshShares();
+      } catch (err) {
+        console.warn('Failed to remove share for deleted folder:', err);
+      }
+    });
 
     // --- Auto-accept ?share-link= on boot ---
     const handleShareLink = async (): Promise<void> => {

@@ -12,6 +12,11 @@ export interface ShareController {
   setGeneralAccess(mode: GeneralAccess, level: AccessLevel): Promise<string | null>;
   /** Current share link, if one exists. */
   currentShareLink(): string | null;
+  /**
+   * Ensure a share link exists, creating the underlying volume on demand even
+   * if nobody has been added yet. Returns the link.
+   */
+  ensureShareLink(): Promise<string | null>;
 }
 
 interface RecipientRow {
@@ -20,6 +25,15 @@ interface RecipientRow {
   role: Role;
   roleSelect: HTMLSelectElement;
   removeBtn: HTMLButtonElement;
+}
+
+function initials(email: string): string {
+  const local = email.split('@')[0] || email;
+  const parts = local.split(/[._-]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return local.slice(0, 2).toUpperCase();
 }
 
 export class ShareDialogBody extends Widget {
@@ -32,7 +46,9 @@ export class ShareDialogBody extends Widget {
   private statusSpan: HTMLSpanElement;
   private generalAccessSelect: HTMLSelectElement;
   private linkRoleSelect: HTMLSelectElement;
+  private gaIcon: HTMLDivElement;
   private linkHint: HTMLSpanElement;
+  private linkBox: HTMLInputElement;
   private copyLinkBtn: HTMLButtonElement;
   private rows: RecipientRow[] = [];
 
@@ -46,21 +62,15 @@ export class ShareDialogBody extends Widget {
     private readonly controller?: ShareController
   ) {
     super({ node: document.createElement('div') });
-    this.node.style.minWidth = '500px';
-    this.node.style.fontSize = '13px';
+    this.addClass('jp-ShareDialog');
 
+    // --- People with access ---
     this.peopleHeading = document.createElement('div');
-    this.peopleHeading.style.fontWeight = '600';
-    this.peopleHeading.style.marginBottom = '6px';
+    this.peopleHeading.className = 'jp-ShareDialog-section';
     this.node.appendChild(this.peopleHeading);
 
     this.chipsContainer = document.createElement('div');
-    this.chipsContainer.style.display = 'flex';
-    this.chipsContainer.style.flexDirection = 'column';
-    this.chipsContainer.style.gap = '4px';
-    this.chipsContainer.style.marginBottom = '10px';
-    this.chipsContainer.style.maxHeight = '180px';
-    this.chipsContainer.style.overflowY = 'auto';
+    this.chipsContainer.className = 'jp-ShareDialog-people';
     this.node.appendChild(this.chipsContainer);
 
     if (ownerEmail) {
@@ -70,29 +80,22 @@ export class ShareDialogBody extends Widget {
       if (p.user_email === ownerEmail) {
         continue;
       }
-      this.addRow(
-        p.user_email,
-        p.access_level === 'write' ? 'editor' : 'viewer'
-      );
+      this.addRow(p.user_email, p.access_level === 'write' ? 'editor' : 'viewer');
     }
     this.updatePeopleHeading();
 
+    // --- Add people ---
     const addHeading = document.createElement('div');
     addHeading.textContent = 'Add people';
-    addHeading.style.fontWeight = '600';
-    addHeading.style.margin = '10px 0 6px';
+    addHeading.className = 'jp-ShareDialog-section';
     this.node.appendChild(addHeading);
 
     const addRow = document.createElement('div');
-    addRow.style.display = 'flex';
-    addRow.style.gap = '6px';
-    addRow.style.marginBottom = '8px';
+    addRow.className = 'jp-ShareDialog-addrow';
 
     this.emailInput = document.createElement('input');
     this.emailInput.type = 'email';
     this.emailInput.placeholder = 'Email address';
-    this.emailInput.style.flex = '1';
-    this.emailInput.style.padding = '4px 6px';
     this.emailInput.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
@@ -104,7 +107,7 @@ export class ShareDialogBody extends Widget {
 
     this.addBtn = document.createElement('button');
     this.addBtn.textContent = 'Add';
-    this.addBtn.style.cursor = 'pointer';
+    this.addBtn.className = 'jp-ShareDialog-btn';
     this.addBtn.addEventListener('click', e => {
       e.preventDefault();
       void this.commitCurrentInput();
@@ -116,39 +119,32 @@ export class ShareDialogBody extends Widget {
     this.node.appendChild(addRow);
 
     this.errorSpan = document.createElement('span');
-    this.errorSpan.style.color = '#e74c3c';
-    this.errorSpan.style.fontSize = '12px';
-    this.errorSpan.style.display = 'none';
-    this.errorSpan.style.marginBottom = '8px';
+    this.errorSpan.className = 'jp-ShareDialog-error';
     this.node.appendChild(this.errorSpan);
 
     this.statusSpan = document.createElement('span');
-    this.statusSpan.style.color = '#888';
-    this.statusSpan.style.fontSize = '12px';
-    this.statusSpan.style.display = 'none';
-    this.statusSpan.style.marginBottom = '8px';
+    this.statusSpan.className = 'jp-ShareDialog-status';
     this.node.appendChild(this.statusSpan);
 
     const divider = document.createElement('hr');
-    divider.style.border = 'none';
-    divider.style.borderTop = '1px solid #ddd';
-    divider.style.margin = '8px 0 12px';
+    divider.className = 'jp-ShareDialog-divider';
     this.node.appendChild(divider);
 
+    // --- General access ---
     const gaHeading = document.createElement('div');
     gaHeading.textContent = 'General access';
-    gaHeading.style.fontWeight = '600';
-    gaHeading.style.marginBottom = '6px';
+    gaHeading.className = 'jp-ShareDialog-section';
     this.node.appendChild(gaHeading);
 
     const gaRow = document.createElement('div');
-    gaRow.style.display = 'flex';
-    gaRow.style.gap = '6px';
-    gaRow.style.alignItems = 'center';
-    gaRow.style.marginBottom = '6px';
+    gaRow.className = 'jp-ShareDialog-ga';
+
+    this.gaIcon = document.createElement('div');
+    this.gaIcon.className = 'jp-ShareDialog-ga-icon';
 
     this.generalAccessSelect = document.createElement('select');
     addOption(this.generalAccessSelect, 'restricted', 'Restricted');
+    addOption(this.generalAccessSelect, 'link', 'Anyone with the link');
     addOption(
       this.generalAccessSelect,
       'domain',
@@ -166,46 +162,61 @@ export class ShareDialogBody extends Widget {
       void this.commitGeneralAccess();
     });
 
+    gaRow.appendChild(this.gaIcon);
     gaRow.appendChild(this.generalAccessSelect);
     gaRow.appendChild(this.linkRoleSelect);
     this.node.appendChild(gaRow);
 
     this.linkHint = document.createElement('span');
-    this.linkHint.style.fontSize = '12px';
-    this.linkHint.style.color = '#666';
-    this.linkHint.style.display = 'block';
-    this.linkHint.style.marginBottom = '6px';
+    this.linkHint.className = 'jp-ShareDialog-hint';
     this.node.appendChild(this.linkHint);
+
+    // --- Share link row (always available; created on demand) ---
+    const linkRow = document.createElement('div');
+    linkRow.className = 'jp-ShareDialog-linkrow';
+
+    this.linkBox = document.createElement('input');
+    this.linkBox.type = 'text';
+    this.linkBox.readOnly = true;
+    this.linkBox.className = 'jp-ShareDialog-linkbox';
+    this.linkBox.addEventListener('focus', () => this.linkBox.select());
 
     this.copyLinkBtn = document.createElement('button');
     this.copyLinkBtn.textContent = 'Copy link';
-    this.copyLinkBtn.style.cursor = 'pointer';
-    this.copyLinkBtn.style.padding = '3px 10px';
+    this.copyLinkBtn.className = 'jp-ShareDialog-btn secondary';
     this.copyLinkBtn.addEventListener('click', e => {
       e.preventDefault();
       void this.copyLink();
     });
-    this.node.appendChild(this.copyLinkBtn);
+
+    linkRow.appendChild(this.linkBox);
+    linkRow.appendChild(this.copyLinkBtn);
+    this.node.appendChild(linkRow);
 
     this.updateLinkState();
   }
 
   private renderOwnerChip(email: string): void {
     const row = document.createElement('div');
-    row.style.display = 'flex';
-    row.style.alignItems = 'center';
-    row.style.gap = '8px';
-    row.style.padding = '3px 6px';
-    row.style.background = '#f5f5f5';
-    row.style.borderRadius = '4px';
+    row.className = 'jp-ShareDialog-row is-owner';
 
-    const emailSpan = document.createElement('span');
-    emailSpan.textContent = `${email} (owner)`;
-    emailSpan.style.flex = '1';
-    emailSpan.style.color = '#666';
-    emailSpan.style.fontStyle = 'italic';
+    const avatar = document.createElement('div');
+    avatar.className = 'jp-ShareDialog-avatar is-owner';
+    avatar.textContent = initials(email);
 
-    row.appendChild(emailSpan);
+    const meta = document.createElement('div');
+    meta.className = 'jp-ShareDialog-meta';
+    const emailEl = document.createElement('div');
+    emailEl.className = 'jp-ShareDialog-email';
+    emailEl.textContent = email;
+    const tag = document.createElement('div');
+    tag.className = 'jp-ShareDialog-tag';
+    tag.textContent = 'Owner';
+    meta.appendChild(emailEl);
+    meta.appendChild(tag);
+
+    row.appendChild(avatar);
+    row.appendChild(meta);
     this.chipsContainer.appendChild(row);
   }
 
@@ -224,20 +235,40 @@ export class ShareDialogBody extends Widget {
   }
 
   private updateLinkState(): void {
-    const domain = this.generalAccessSelect.value === 'domain';
-    this.linkRoleSelect.disabled = !domain;
+    const mode = this.generalAccessSelect.value as GeneralAccess;
+    const linkBased = mode !== 'restricted';
+    this.linkRoleSelect.disabled = !linkBased;
+
+    const icons: Record<GeneralAccess, string> = {
+      restricted: '🔒',
+      link: '🔗',
+      domain: '🏛️'
+    };
+    this.gaIcon.textContent = icons[mode] ?? '🔒';
+
     const link = this.controller?.currentShareLink() ?? null;
-    this.copyLinkBtn.disabled = !link;
-    if (!link) {
-      this.linkHint.textContent =
-        'Link becomes available once the folder has been shared with at least one recipient or domain access is enabled.';
-    } else if (domain) {
+    this.linkBox.value = link ?? '';
+    this.linkBox.placeholder =
+      'A link will be generated when you click “Copy link”.';
+    // Always allow generating/copying a link — no need to pre-share.
+    this.copyLinkBtn.disabled = false;
+
+    if (mode === 'domain') {
       this.linkHint.textContent = `Anyone at ${
         this.ownerDomain || 'your domain'
-      } with this link can access “${this.folderName}”.`;
+      } with this link can open “${this.folderName}” as ${
+        this.linkRoleSelect.value === 'editor' ? 'an editor' : 'a viewer'
+      }.`;
+    } else if (mode === 'link') {
+      this.linkHint.textContent = `Anyone with this link can open “${
+        this.folderName
+      }” as ${
+        this.linkRoleSelect.value === 'editor' ? 'an editor' : 'a viewer'
+      }. No need to add them individually.`;
     } else {
       this.linkHint.textContent =
-        'Only people explicitly added above can use this link.';
+        'Restricted — only people you add above can open the folder. ' +
+        'Switch to “Anyone with the link” to share without adding people.';
     }
   }
 
@@ -286,30 +317,28 @@ export class ShareDialogBody extends Widget {
 
   private addRow(email: string, role: Role): RecipientRow {
     const container = document.createElement('div');
-    container.style.display = 'flex';
-    container.style.alignItems = 'center';
-    container.style.gap = '8px';
-    container.style.padding = '3px 6px';
-    container.style.background = '#eef5ff';
-    container.style.borderRadius = '4px';
+    container.className = 'jp-ShareDialog-row';
 
-    const emailSpan = document.createElement('span');
-    emailSpan.textContent = email;
-    emailSpan.style.flex = '1';
-    emailSpan.style.overflow = 'hidden';
-    emailSpan.style.textOverflow = 'ellipsis';
+    const avatar = document.createElement('div');
+    avatar.className = 'jp-ShareDialog-avatar';
+    avatar.textContent = initials(email);
+
+    const meta = document.createElement('div');
+    meta.className = 'jp-ShareDialog-meta';
+    const emailEl = document.createElement('div');
+    emailEl.className = 'jp-ShareDialog-email';
+    emailEl.textContent = email;
+    meta.appendChild(emailEl);
 
     const roleSelect = buildRoleSelect(role);
 
     const removeBtn = document.createElement('button');
     removeBtn.textContent = '×';
     removeBtn.title = 'Remove';
-    removeBtn.style.cursor = 'pointer';
-    removeBtn.style.border = 'none';
-    removeBtn.style.background = 'transparent';
-    removeBtn.style.fontSize = '16px';
+    removeBtn.className = 'jp-ShareDialog-remove';
 
-    container.appendChild(emailSpan);
+    container.appendChild(avatar);
+    container.appendChild(meta);
     container.appendChild(roleSelect);
     container.appendChild(removeBtn);
     this.chipsContainer.appendChild(container);
@@ -398,20 +427,41 @@ export class ShareDialogBody extends Widget {
   }
 
   private async copyLink(): Promise<void> {
-    const link = this.controller?.currentShareLink() ?? null;
+    if (!this.controller) {
+      return;
+    }
+    this.copyLinkBtn.disabled = true;
+    const original = this.copyLinkBtn.textContent;
+    this.copyLinkBtn.textContent = 'Working…';
+    let link: string | null = null;
+    try {
+      // Create the volume on demand if it doesn't exist yet — the user does
+      // NOT have to share with anyone first.
+      link = await this.controller.ensureShareLink();
+    } catch (err) {
+      this.copyLinkBtn.textContent = original;
+      this.copyLinkBtn.disabled = false;
+      this.showError(
+        err instanceof Error ? err.message : 'Could not generate the link.'
+      );
+      return;
+    }
+    this.updateLinkState();
+    this.copyLinkBtn.disabled = false;
     if (!link) {
+      this.copyLinkBtn.textContent = original;
       return;
     }
     const ok = await tryCopyToClipboard(link);
     if (ok) {
-      const original = this.copyLinkBtn.textContent;
       this.copyLinkBtn.textContent = 'Copied!';
       setTimeout(() => {
         this.copyLinkBtn.textContent = original;
       }, 1500);
     } else {
+      this.copyLinkBtn.textContent = original;
       this.showError(
-        `Copy failed. The link is: ${link} — select and copy it manually.`
+        `Copy failed. The link is in the box — select and copy it manually.`
       );
     }
   }

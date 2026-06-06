@@ -3,7 +3,7 @@ import { ServerConnection } from '@jupyterlab/services';
 const settings = ServerConnection.makeSettings();
 
 export type Role = 'viewer' | 'editor';
-export type GeneralAccess = 'restricted' | 'domain';
+export type GeneralAccess = 'restricted' | 'link' | 'domain';
 export type AccessLevel = 'read' | 'write';
 
 export interface Recipient {
@@ -179,6 +179,19 @@ export const acceptShare = (volumeName: string, token: string): Promise<{ messag
 
 export const fetchMyShares = (token: string): Promise<{ shares: ShareSummary[] }> =>
   request<{ shares: ShareSummary[] }>('jlab-examples/my-shares', { method: 'GET' }, token);
+
+/**
+ * Delete a share entirely (owner only). Used when the owner deletes the
+ * source folder — the share must then disappear for every recipient too.
+ */
+export const deleteVolume = (
+  volumeName: string,
+  token: string
+): Promise<{ message: string }> =>
+  request<{ message: string }>(
+    `jlab-examples/volume/${encodeURIComponent(volumeName)}`,
+    { method: 'DELETE', body: JSON.stringify({ token }) }
+  );
 
 export interface MeResponse {
   email: string;

@@ -10,6 +10,16 @@
       }
     ]
   },
+  "jupyter.lab.toolbars": {
+    "Cell": [
+      {
+        "name": "run-cell",
+        "command": "notebook:run-cell-and-select-next",
+        "icon": "ui-components:run",
+        "rank": 1
+      }
+    ]
+  },
   "additionalProperties": false,
   "type": "object"
 }

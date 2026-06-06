@@ -234,6 +234,23 @@ class MySharesHandler(APIHandler):
             self.finish(json.dumps({"error": str(e)}))
 
 
+class DeleteVolumeHandler(APIHandler):
+    @web.authenticated
+    async def delete(self, volume_name: str):
+        try:
+            data = self.get_json_body() or {}
+            token = data.pop("token", None) or _bearer_token(self)
+            if not token:
+                self.set_status(401)
+                self.finish(json.dumps({"error": "Missing auth token"}))
+                return
+            await _proxy(self, "DELETE", f"/share/volume/{volume_name}", token)
+        except Exception as e:
+            self.log.error(f"Error in DeleteVolumeHandler: {e}")
+            self.set_status(500)
+            self.finish(json.dumps({"error": str(e)}))
+
+
 def setup_handlers(web_app):
     host_pattern = ".*$"
     base_url = web_app.settings["base_url"]
@@ -246,6 +263,7 @@ def setup_handlers(web_app):
         (url_path_join(base_url, "jlab-examples", "my-shares"), MySharesHandler),
         (url_path_join(base_url, "jlab-examples", "general-access", "(.+)"), GeneralAccessHandler),
         (url_path_join(base_url, "jlab-examples", "accept", "(.+)"), AcceptShareHandler),
+        (url_path_join(base_url, "jlab-examples", "volume", "(.+)"), DeleteVolumeHandler),
     ]
 
     web_app.add_handlers(host_pattern, handlers)
