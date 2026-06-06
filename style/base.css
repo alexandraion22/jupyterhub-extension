@@ -136,12 +136,21 @@
   padding-left: 10px;
   padding-right: 10px;
 }
-/* Exactly one dropdown arrow: kill the native one (appearance:none) and draw a
-   single custom chevron. */
-/* Exactly one arrow: kill the native select arrow (on macOS it renders as a
-   DOUBLE chevron) with appearance:none, then draw a single custom chevron.
-   Verified to render one arrow even when JupyterLab wraps the select in
-   .jp-select-wrapper. */
+/* JupyterLab's dialog styling wraps every <select> in a .jp-select-wrapper,
+   injects its own caret element, AND the native macOS select arrow is itself a
+   DOUBLE chevron — together that's the 2-3 arrows. To get exactly ONE:
+   (1) hide jp's injected caret (any non-<select> child of the wrapper),
+   (2) kill the native arrow (appearance:none),
+   (3) draw a single custom SVG chevron.
+   Also fix the wrapper layout: it defaults to width:100% + a 12px bottom margin
+   which made the per-recipient role dropdown stretch across the whole row. */
+.jp-ShareDialog .jp-select-wrapper {
+  margin: 0 !important;
+  width: auto !important;
+}
+.jp-ShareDialog .jp-select-wrapper > :not(select) {
+  display: none !important;
+}
 .jp-ShareDialog select.jp-mod-styled {
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
@@ -153,16 +162,20 @@
   background-position: right 10px center !important;
   background-size: 12px !important;
 }
+/* compact role dropdown (per recipient + add row); wide general-access one */
+.jp-ShareDialog .jp-select-wrapper:has(select.jp-ShareDialog-role) {
+  flex: 0 0 116px;
+  width: 116px !important;
+}
+.jp-ShareDialog .jp-select-wrapper:has(select.jp-ShareDialog-ga-select) {
+  flex: 1;
+}
 .jp-ShareDialog select.jp-ShareDialog-role {
-  min-width: 96px;
   text-align: center;
   text-align-last: center;
 }
 .jp-ShareDialog-role option {
   text-align: center;
-}
-.jp-ShareDialog-ga-select {
-  flex: 1;
 }
 .jp-ShareDialog-addrow {
   display: flex;
