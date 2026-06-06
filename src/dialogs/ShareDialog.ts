@@ -254,22 +254,17 @@ export class ShareDialogBody extends Widget {
     // Always allow generating/copying a link — no need to pre-share.
     this.copyLinkBtn.disabled = false;
 
+    // Short hints (≤ 2 lines) + the hint's reserved min-height keep the dialog
+    // from resizing when switching modes.
+    const role = this.linkRoleSelect.value === 'editor' ? 'an editor' : 'a viewer';
     if (mode === 'domain') {
       this.linkHint.textContent = `Anyone at ${
         this.ownerDomain || 'your domain'
-      } with this link can open “${this.folderName}” as ${
-        this.linkRoleSelect.value === 'editor' ? 'an editor' : 'a viewer'
-      }.`;
+      } with the link can open “${this.folderName}” as ${role}.`;
     } else if (mode === 'link') {
-      this.linkHint.textContent = `Anyone with this link can open “${
-        this.folderName
-      }” as ${
-        this.linkRoleSelect.value === 'editor' ? 'an editor' : 'a viewer'
-      }. No need to add them individually.`;
+      this.linkHint.textContent = `Anyone with the link can open “${this.folderName}” as ${role}.`;
     } else {
-      this.linkHint.textContent =
-        'Restricted — only people you add above can open the folder. ' +
-        'Switch to “Anyone with the link” to share without adding people.';
+      this.linkHint.textContent = `Only people you add above can open “${this.folderName}”.`;
     }
   }
 
