@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0.0",
+  "mode": "full",
+  "commit_sha": "33f7e1f121f266c6574b766e69b2bbbef8eb493f",
+  "author": "alexanamaria22@yahoo.com",
+  "timestamp": "2026-06-06T20:27:14+03:00",
+  "detection": {
+    "ai_assisted": true,
+    "method": "editor_hook",
+    "tool": "claude",
+    "model": "",
+    "confidence": 1.0
+  },
+  "stats": {
+    "total_additions": 434,
+    "total_deletions": 0,
+    "ai_additions": 9,
+    "ai_deletions": 0,
+    "human_additions": 425,
+    "human_deletions": 0
+  },
+  "files": {
+    "jupyterlab_examples_context_menu/handlers.py": {
+      "ai_additions": 0,
+      "human_additions": 18,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "237-253,266"
+    },
+    "schema/plugin.json": {
+      "ai_additions": 0,
+      "human_additions": 10,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "13-22"
+    },
+    "src/api.ts": {
+      "ai_additions": 0,
+      "human_additions": 14,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "6,183-195"
+    },
+    "src/dialogs/ShareDialog.ts": {
+      "ai_additions": 0,
+      "human_additions": 139,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-139"
+    },
+    "src/index.ts": {
+      "ai_additions": 0,
+      "human_additions": 52,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "20,198-219,273-301"
+    },
+    "src/widgets/SharedWithMePanel.ts": {
+      "ai_additions": 9,
+      "human_additions": 12,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "138-146",
+      "human_lines": "3,5-14,31"
+    },
+    "style/base.css": {
+      "ai_additions": 0,
+      "human_additions": 180,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "47-226"
+    }
+  }
+}
