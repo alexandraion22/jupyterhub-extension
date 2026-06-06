@@ -482,6 +482,11 @@ export class ShareDialogBody extends Widget {
   refreshLinkState(): void {
     this.updateLinkState();
   }
+
+  // Tag the host .jp-Dialog so CSS can square the footer "Done" button too.
+  protected onAfterAttach(): void {
+    this.node.closest('.jp-Dialog')?.classList.add('jp-ShareDialog-host');
+  }
 }
 
 function buildRoleSelect(initial: Role): HTMLSelectElement {

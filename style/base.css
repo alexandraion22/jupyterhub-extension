@@ -115,13 +115,18 @@
    dropdowns/inputs match the rest of the platform. */
 .jp-ShareDialog .jp-mod-styled {
   font-size: var(--jp-ui-font-size1, 13px);
-  border-radius: 6px;
+  border-radius: 0;
 }
 .jp-ShareDialog select.jp-mod-styled {
   height: 34px;
 }
 .jp-ShareDialog-role {
   min-width: 92px;
+  text-align: center;
+  text-align-last: center;
+}
+.jp-ShareDialog-role option {
+  text-align: center;
 }
 .jp-ShareDialog-ga-select {
   flex: 1;
@@ -139,11 +144,15 @@
   font-size: 12px;
   height: 34px;
   border: 1px solid var(--jp-border-color1, #dadce0);
-  border-radius: 6px;
+  border-radius: 0;
   background: var(--jp-layout-color1, #fff);
   color: var(--jp-ui-font-color1, #202124);
   padding: 0 10px;
   outline: none;
+}
+/* Square the dialog's footer button (Done) too, for a fully uniform look. */
+.jp-ShareDialog-host .jp-Dialog-footer button {
+  border-radius: 0;
 }
 .jp-ShareDialog-row:not(.is-owner):hover {
   background: var(--jp-layout-color3, #e8eaed);
@@ -183,11 +192,14 @@
   border-width: 6px 0 6px 10px;
   border-color: transparent transparent transparent var(--jp-brand-color1, #1a73e8);
 }
-.jp-ShareDialog-btn {
+/* High specificity (.jp-ShareDialog prefix) so JupyterLab's `.jp-Dialog button`
+   rule can't override the text color. border-radius:0 keeps every control square
+   and uniform. */
+.jp-ShareDialog .jp-ShareDialog-btn {
   font-size: 13px;
   font-weight: 600;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   height: 34px;
   padding: 0 16px;
   display: inline-flex;
@@ -197,14 +209,14 @@
   color: #fff;
   white-space: nowrap;
 }
-.jp-ShareDialog-btn:hover {
+.jp-ShareDialog .jp-ShareDialog-btn:hover {
   filter: brightness(1.05);
 }
-.jp-ShareDialog-btn.secondary {
+.jp-ShareDialog .jp-ShareDialog-btn.secondary {
   background: var(--jp-layout-color2, #f1f3f4);
   color: var(--jp-brand-color1, #1a73e8);
 }
-.jp-ShareDialog-btn:disabled {
+.jp-ShareDialog .jp-ShareDialog-btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
