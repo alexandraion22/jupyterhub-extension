@@ -180,7 +180,7 @@
   content: '';
   position: absolute;
   top: 15px;
-  left: 50%;
+  left: 62%;
   transform: translate(-50%, -50%);
   width: 26px;
   height: 26px;
@@ -191,7 +191,7 @@
   content: '';
   position: absolute;
   top: 15px;
-  left: 50%;
+  left: 62%;
   transform: translate(-35%, -50%);
   width: 0;
   height: 0;
@@ -215,7 +215,7 @@
   content: '';
   position: absolute;
   top: 15px;
-  left: 50%;
+  left: 62%;
   width: 14px;
   height: 14px;
   border: 2px solid var(--jp-border-color2, #b0b0b0);
