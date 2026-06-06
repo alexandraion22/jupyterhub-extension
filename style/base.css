@@ -111,29 +111,41 @@
   font-size: 11px;
   color: var(--jp-ui-font-color2, #5f6368);
 }
-.jp-ShareDialog input[type='email'],
-.jp-ShareDialog select,
-.jp-ShareDialog-linkbox {
-  font-size: 13px;
-  border: 1px solid var(--jp-border-color1, #dadce0);
-  border-radius: 8px;
-  background: var(--jp-layout-color1, #fff);
-  color: var(--jp-ui-font-color1, #202124);
-  padding: 8px 10px;
-  outline: none;
+/* Form controls defer to JupyterLab's native .jp-mod-styled look so the
+   dropdowns/inputs match the rest of the platform. */
+.jp-ShareDialog .jp-mod-styled {
+  font-size: var(--jp-ui-font-size1, 13px);
+  border-radius: 6px;
 }
-.jp-ShareDialog input[type='email']:focus,
-.jp-ShareDialog select:focus {
-  border-color: var(--jp-brand-color1, #1a73e8);
-  box-shadow: 0 0 0 2px var(--jp-brand-color3, rgba(26, 115, 232, 0.2));
+.jp-ShareDialog select.jp-mod-styled {
+  height: 30px;
+}
+.jp-ShareDialog-role {
+  min-width: 92px;
+}
+.jp-ShareDialog-ga-select {
+  flex: 1;
 }
 .jp-ShareDialog-addrow {
   display: flex;
   gap: 8px;
   align-items: center;
 }
-.jp-ShareDialog-addrow input[type='email'] {
+.jp-ShareDialog-addrow input.jp-mod-styled {
   flex: 1;
+  height: 36px;
+}
+.jp-ShareDialog-linkbox {
+  font-size: 13px;
+  border: 1px solid var(--jp-border-color1, #dadce0);
+  border-radius: 6px;
+  background: var(--jp-layout-color1, #fff);
+  color: var(--jp-ui-font-color1, #202124);
+  padding: 8px 10px;
+  outline: none;
+}
+.jp-ShareDialog-row:not(.is-owner):hover {
+  background: var(--jp-layout-color3, #e8eaed);
 }
 .jp-ShareDialog-btn {
   font-size: 13px;

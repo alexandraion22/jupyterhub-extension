@@ -95,7 +95,8 @@ export class ShareDialogBody extends Widget {
 
     this.emailInput = document.createElement('input');
     this.emailInput.type = 'email';
-    this.emailInput.placeholder = 'Email address';
+    this.emailInput.placeholder = 'Add people by email';
+    this.emailInput.className = 'jp-mod-styled';
     this.emailInput.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ',') {
         e.preventDefault();
@@ -143,6 +144,7 @@ export class ShareDialogBody extends Widget {
     this.gaIcon.className = 'jp-ShareDialog-ga-icon';
 
     this.generalAccessSelect = document.createElement('select');
+    this.generalAccessSelect.className = 'jp-mod-styled jp-ShareDialog-ga-select';
     addOption(this.generalAccessSelect, 'restricted', 'Restricted');
     addOption(this.generalAccessSelect, 'link', 'Anyone with the link');
     addOption(
@@ -487,6 +489,8 @@ export class ShareDialogBody extends Widget {
 
 function buildRoleSelect(initial: Role): HTMLSelectElement {
   const select = document.createElement('select');
+  // jp-mod-styled makes the dropdown match JupyterLab's native form controls.
+  select.className = 'jp-mod-styled jp-ShareDialog-role';
   addOption(select, 'viewer', 'Viewer');
   addOption(select, 'editor', 'Editor');
   select.value = initial;
