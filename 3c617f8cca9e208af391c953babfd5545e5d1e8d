@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "mode": "full",
+  "commit_sha": "3c617f8cca9e208af391c953babfd5545e5d1e8d",
+  "author": "alexanamaria22@yahoo.com",
+  "timestamp": "2026-06-06T20:57:45+03:00",
+  "detection": {
+    "ai_assisted": true,
+    "method": "heuristic",
+    "tool": "claude-code",
+    "model": "",
+    "confidence": 0.9
+  },
+  "stats": {
+    "total_additions": 32,
+    "total_deletions": 16,
+    "ai_additions": 32,
+    "ai_deletions": 16,
+    "human_additions": 0,
+    "human_deletions": 0
+  },
+  "files": {
+    "src/dialogs/ShareDialog.ts": {
+      "ai_additions": 5,
+      "human_additions": 0,
+      "ai_deletions": 1,
+      "human_deletions": 0
+    },
+    "style/base.css": {
+      "ai_additions": 27,
+      "human_additions": 0,
+      "ai_deletions": 15,
+      "human_deletions": 0
+    }
+  }
+}
