@@ -147,12 +147,9 @@ export class ShareDialogBody extends Widget {
     this.generalAccessSelect.className = 'jp-mod-styled jp-ShareDialog-ga-select';
     addOption(this.generalAccessSelect, 'restricted', 'Restricted');
     addOption(this.generalAccessSelect, 'link', 'Anyone with the link');
-    addOption(
-      this.generalAccessSelect,
-      'domain',
-      ownerDomain ? `Anyone at ${ownerDomain}` : 'Anyone in your domain'
-    );
-    this.generalAccessSelect.value = initialGeneralAccess;
+    // 'domain' (Anyone at <domain>) intentionally omitted from the UI.
+    this.generalAccessSelect.value =
+      initialGeneralAccess === 'domain' ? 'link' : initialGeneralAccess;
     this.generalAccessSelect.addEventListener('change', () => {
       void this.commitGeneralAccess();
     });
