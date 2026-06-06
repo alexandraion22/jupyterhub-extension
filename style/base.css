@@ -162,20 +162,40 @@
   background-position: right 10px center !important;
   background-size: 12px !important;
 }
-/* compact role dropdown (per recipient + add row); wide general-access one */
+/* Compact role dropdown / wide general-access one. Sized BOTH on the wrapper
+   (pre-existing rows, wrapped by JupyterLab at dialog-open) AND directly on the
+   select (rows added after open are NOT wrapped, so jp's width:100% would make
+   them cover the email). */
 .jp-ShareDialog .jp-select-wrapper:has(select.jp-ShareDialog-role) {
-  flex: 0 0 116px;
+  flex: 0 0 116px !important;
   width: 116px !important;
 }
 .jp-ShareDialog .jp-select-wrapper:has(select.jp-ShareDialog-ga-select) {
-  flex: 1;
+  flex: 1 !important;
 }
 .jp-ShareDialog select.jp-ShareDialog-role {
+  flex: 0 0 116px !important;
+  width: 116px !important;
   text-align: center;
   text-align-last: center;
 }
+.jp-ShareDialog select.jp-ShareDialog-ga-select {
+  flex: 1 1 auto !important;
+  width: auto !important;
+}
 .jp-ShareDialog-role option {
   text-align: center;
+}
+/* Remove (×) button: JupyterLab styles it as a bordered button, breaking the
+   row alignment. Force it flat and the same height as the dropdown. */
+.jp-ShareDialog .jp-ShareDialog-remove {
+  flex: 0 0 auto;
+  height: 36px !important;
+  width: 34px !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 .jp-ShareDialog-addrow {
   display: flex;
