@@ -1,0 +1,144 @@
+{
+  "schema_version": "1.0.0",
+  "mode": "full",
+  "commit_sha": "21d29bc61db541cf421198936cafaafc9b997a5a",
+  "author": "alexanamaria22@yahoo.com",
+  "timestamp": "2026-06-10T16:29:55+03:00",
+  "detection": {
+    "ai_assisted": true,
+    "method": "editor_hook",
+    "tool": "claude",
+    "model": "",
+    "confidence": 1.0
+  },
+  "stats": {
+    "total_additions": 677,
+    "total_deletions": 0,
+    "ai_additions": 10,
+    "ai_deletions": 0,
+    "human_additions": 667,
+    "human_deletions": 0
+  },
+  "files": {
+    "jupyterlab_examples_context_menu-0.1.0.data/data/etc/jupyter/jupyter_server_config.d/jupyterlab_examples_context_menu.json": {
+      "ai_additions": 0,
+      "human_additions": 17,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-17"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/install.json": {
+      "ai_additions": 0,
+      "human_additions": 5,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-5"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/package.json": {
+      "ai_additions": 0,
+      "human_additions": 200,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-200"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/schemas/@jupyterlab-examples/context-menu/package.json.orig": {
+      "ai_additions": 0,
+      "human_additions": 195,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-195"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/schemas/@jupyterlab-examples/context-menu/plugin.json": {
+      "ai_additions": 0,
+      "human_additions": 15,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-15"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/374.88a18b45c3fa1fccb841.js": {
+      "ai_additions": 0,
+      "human_additions": 1,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/728.939cd41ec4aec3c4db9f.js": {
+      "ai_additions": 0,
+      "human_additions": 1,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/remoteEntry.75e7d6b674f976371347.js": {
+      "ai_additions": 0,
+      "human_additions": 1,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/style.js": {
+      "ai_additions": 0,
+      "human_additions": 4,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-4"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/third-party-licenses.json": {
+      "ai_additions": 0,
+      "human_additions": 16,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-16"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.dist-info/METADATA": {
+      "ai_additions": 0,
+      "human_additions": 162,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-162"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.dist-info/RECORD": {
+      "ai_additions": 0,
+      "human_additions": 17,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-17"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.dist-info/WHEEL": {
+      "ai_additions": 0,
+      "human_additions": 4,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-4"
+    },
+    "jupyterlab_examples_context_menu-0.1.0.dist-info/licenses/LICENSE": {
+      "ai_additions": 0,
+      "human_additions": 29,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "",
+      "human_lines": "1-29"
+    },
+    "style/base.css": {
+      "ai_additions": 10,
+      "human_additions": 0,
+      "ai_deletions": 0,
+      "human_deletions": 0,
+      "ai_lines": "56-65",
+      "human_lines": ""
+    }
+  }
+}
