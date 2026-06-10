@@ -54,6 +54,16 @@
   font-size: var(--jp-ui-font-size1, 13px);
   color: var(--jp-ui-font-color1, #202124);
 }
+/* JupyterLab hard-caps .jp-Dialog-content at max-height:500px (+ overflow:hidden),
+   which is shorter than this dialog's full content (people + add row + general
+   access + link). That made .jp-Dialog-body scroll and the lower rows look cut
+   off — NOT the people list itself. Let our dialog grow to the viewport so all
+   sections are visible; the people list keeps its own 360px scroll for big lists.
+   Scoped to .jp-ShareDialog-host (tagged in ShareDialog.ts) so no other dialog
+   is affected. */
+.jp-ShareDialog-host .jp-Dialog-content {
+  max-height: 92vh;
+}
 .jp-ShareDialog-section {
   font-weight: 600;
   font-size: 13px;

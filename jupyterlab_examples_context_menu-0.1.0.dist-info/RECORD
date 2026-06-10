@@ -1,0 +1,17 @@
+jupyterlab_examples_context_menu/__init__.py,sha256=23QHg1FQuRr_Yj9Ei9zXT7ubRdpkgWHhcp2JAJxrtjk,13935
+jupyterlab_examples_context_menu/_version.py,sha256=ac3tgjoOzsODOlacRPCwz99LbZv0NK7ZYAaBWulFo7E,171
+jupyterlab_examples_context_menu/handlers.py,sha256=pjtpfL9A11-aXeDpVOlNLE-831OowUtHEMw6gGE8qtA,10372
+jupyterlab_examples_context_menu-0.1.0.data/data/etc/jupyter/jupyter_server_config.d/jupyterlab_examples_context_menu.json,sha256=97h4SxfEIF20Lc7MDj5LsAhlqBURR3yRXsIhtLtwK2s,117
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/package.json,sha256=w5DtIR5xfNQ_1SCBPfkg7t8k_-KeinjK9aR7WxTPR64,5939
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/schemas/@jupyterlab-examples/context-menu/package.json.orig,sha256=R1y7JTAlBbeEMiX_pyuMl6XpVmBphfwEFTTeeP7xapE,6693
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/schemas/@jupyterlab-examples/context-menu/plugin.json,sha256=La8d-3P6G7ILKdxj6CQT_4CVtFaDEyXTYETTsytb2Ts,357
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/374.88a18b45c3fa1fccb841.js,sha256=iKGLRcP6H8y4QQIuwV0-iOy3PUQHTZBVotFmcq2t2vM,22675
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/728.939cd41ec4aec3c4db9f.js,sha256=k5zUHsSuw8Tbn0M1wrwBkWVa2ibe1i8y-Nab8mf0CTk,16200
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/remoteEntry.75e7d6b674f976371347.js,sha256=defWtnT5djcTR43AlYQ0kX9NSYXzIIMiLgmg7YFN9ik,7125
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/style.js,sha256=UoyimhDYCvWy5DY66FzQbnzD8j6IDBM-F1Rgay1nlsY,176
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/static/third-party-licenses.json,sha256=W6N2sSD7tQihMqQk64F9xMd1Flfr2KO97esAiHUOYdM,2453
+jupyterlab_examples_context_menu-0.1.0.data/data/share/jupyter/labextensions/@jupyterlab-examples/context-menu/install.json,sha256=ZYTEkNUW1iKm37VTIMjNp9mrNb_5fxSE0Gjm3KR9HNI,225
+jupyterlab_examples_context_menu-0.1.0.dist-info/METADATA,sha256=pnsVlRdaT50tcuG-ERlKCYceHTUUGLGoGELoUmzvcO0,7606
+jupyterlab_examples_context_menu-0.1.0.dist-info/WHEEL,sha256=qtCwoSJWgHk21S1Kb4ihdzI2rlJ1ZKaIurTj_ngOhyQ,87
+jupyterlab_examples_context_menu-0.1.0.dist-info/licenses/LICENSE,sha256=pT_KyFxXOl1Ui_LXVd4bmauJ2-6iH4EkNe5BmMw2y4Q,1536
+jupyterlab_examples_context_menu-0.1.0.dist-info/RECORD,,
